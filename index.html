@@ -29,6 +29,9 @@
             gap: 8px; margin-bottom: 15px; align-items: center;
         }
         .header-grid input { padding: 12px; border-radius: 10px; border: 2px solid #edf2f4; outline: none; width: 100%; box-sizing: border-box; }
+        
+        /* Estilo para input deshabilitado */
+        .header-grid input:disabled { background: #f8f9fa; cursor: not-allowed; color: #adb5bd; }
 
         .btn-header {
             height: 45px; padding: 0 15px; border-radius: 10px; border: none; color: white;
@@ -130,16 +133,16 @@
 <body>
 
     <div class="container">
-        <h1>Panel Domiciliarios</h1>
+        <h1 id="titulo-panel">Panel Domiciliarios</h1>
 
         <div class="header-grid">
             <input type="text" id="nombreInput" placeholder="Nombre domiciliario...">
-            <button class="btn-header btn-add" onclick="agregar()"><i class="fas fa-plus"></i></button>
+            <button class="btn-header btn-add" id="btn-agregar" onclick="agregar()"><i class="fas fa-plus"></i></button>
             <div class="mini-stat bg-rutas"><label>Rutas</label><b id="rutas-globales">0</b></div>
             <div class="mini-stat bg-entregas"><label>Entregas</label><b id="entregas-globales">0</b></div>
             <div class="mini-stat bg-tortas"><label>Tortas</label><b id="tortas-globales">0</b></div>
             <button class="btn-header btn-excel" onclick="exportarExcel()"><i class="fas fa-file-excel"></i></button>
-            <button class="btn-header btn-clear" onclick="borrarTodo()"><i class="fas fa-trash-alt"></i></button>
+            <button class="btn-header btn-clear" id="btn-borrar-todo" onclick="borrarTodo()"><i class="fas fa-trash-alt"></i></button>
         </div>
 
         <div class="search-wrapper">
@@ -194,6 +197,19 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
+        // --- LÓGICA DE ROLES SENIOR ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const isViewOnly = urlParams.get('mode') === 'view';
+
+        // Aplicar restricciones si es modo supervisor
+        if (isViewOnly) {
+            document.getElementById('nombreInput').disabled = true;
+            document.getElementById('nombreInput').placeholder = "Modo Supervisión Activo";
+            document.getElementById('btn-agregar').style.display = 'none';
+            document.getElementById('btn-borrar-todo').style.display = 'none';
+            document.getElementById('titulo-panel').innerText = "Panel Supervisión";
+        }
+
         const firebaseConfig = {
             apiKey: "AIzaSyAYUF9VnjtlMj-gOqYgoG2q1ZxIzv8pbEQ",
             authDomain: "panel-domiciliarios.firebaseapp.com",
@@ -218,7 +234,11 @@
             render();
         });
 
-        async function guardar() { await set(domRef, domiciliarios); }
+        async function guardar() { 
+            if (isViewOnly) return; // Bloqueo de escritura
+            await set(domRef, domiciliarios); 
+        }
+
         window.cerrarModal = (id) => document.getElementById(id).style.display = 'none';
 
         window.exportarExcel = async function() {
@@ -238,6 +258,7 @@
         };
 
         window.agregar = function() {
+            if (isViewOnly) return;
             let input = document.getElementById("nombreInput");
             if (!input.value.trim()) return;
             domiciliarios.push({
@@ -249,10 +270,12 @@
         };
 
         window.borrarTodo = async function() {
+            if (isViewOnly) return;
             if(confirm("¿Borrar todos los datos?")) { domiciliarios = []; guardar(); }
         };
 
         window.cambiarEstado = async function(id) {
+            if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
             if (d.estado === "activo" || d.estado === "inactivo") {
                 const modal = document.getElementById('modalRuta');
@@ -271,6 +294,7 @@
         };
 
         window.descontarTodo = async function(id) {
+            if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
             const modal = document.getElementById('modalAjuste');
             const inRut = document.getElementById('restarRutas');
@@ -291,6 +315,7 @@
         };
 
         window.gestionarAlmuerzo = function(id) {
+            if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
             if (d.estado !== "almorzando") { d.estado = "almorzando"; d.finAlmuerzo = Date.now() + TIEMPO_ALMUERZO; } 
             else { d.estado = "activo"; d.finAlmuerzo = null; d.yaAlmorzo = true; moverAlFinal(id); }
@@ -298,6 +323,7 @@
         };
 
         window.eliminar = async function(id) {
+            if (isViewOnly) return;
             if(confirm("¿Eliminar domiciliario?")) {
                 domiciliarios = domiciliarios.filter(x => x.id !== id);
                 guardar();
@@ -305,6 +331,7 @@
         };
 
         window.toggleInactivo = function(id) {
+            if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
             d.estado = d.estado === "inactivo" ? "activo" : "inactivo";
             if(d.estado === "activo") moverAlFinal(id); else guardar();
@@ -331,6 +358,11 @@
                         let diff = Math.max(0, Math.floor((d.finAlmuerzo - ahora) / 1000));
                         timer = `<span style="color:var(--danger); font-weight:800; font-size:0.8rem;">${Math.floor(diff/60)}:${(diff%60).toString().padStart(2,'0')}</span>`;
                     }
+
+                    // En modo supervisor, las acciones se ocultan dinámicamente
+                    const actionsStyle = isViewOnly ? 'style="display:none"' : '';
+                    const discountBtnHTML = isViewOnly ? '' : `<button class="btn-discount" onclick="descontarTodo(${d.id})"><i class="fas fa-minus-circle"></i></button>`;
+
                     html += `
                         <div class="item">
                             <div class="info-col">
@@ -343,12 +375,12 @@
                                     <div class="stat-box">R: <b>${d.rutasRealizadas}</b></div>
                                     <div class="stat-box">E: <b class="val-e">${d.entregasRealizadas}</b></div>
                                     <div class="stat-box">T: <b class="val-t">${d.tortasPescado || 0}</b></div>
-                                    <button class="btn-discount" onclick="descontarTodo(${d.id})"><i class="fas fa-minus-circle"></i></button>
+                                    ${discountBtnHTML}
                                     <div class="tag ${d.estado}">${d.estado}</div>
                                     ${timer}
                                 </div>
                             </div>
-                            <div class="actions">
+                            <div class="actions" ${actionsStyle}>
                                 <button class="btn-act" onclick="toggleInactivo(${d.id})" style="color:${d.estado==='inactivo'?'var(--danger)':'#ccc'}"><i class="fas fa-power-off"></i></button>
                                 <button class="btn-act" onclick="cambiarEstado(${d.id})" style="color:var(--warning)"><i class="fas ${d.estado==='ruta'?'fa-check':'fa-route'}"></i></button>
                                 <button class="btn-act" onclick="gestionarAlmuerzo(${d.id})" style="color:var(--primary)"><i class="fas fa-utensils"></i></button>
