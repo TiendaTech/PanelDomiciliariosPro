@@ -660,6 +660,15 @@
                 gap: 3px;
                 flex-shrink: 0;
             }
+
+            .modal-content .input-group div {
+                flex-direction: row !important;
+            }
+
+            .modal-content .btn-add {
+                min-width: 50px !important;
+                height: 48px !important;
+            }
         }
     </style>
 </head>
@@ -678,7 +687,8 @@
         </div>
 
         <div class="header-grid">
-            <input type="text" id="nombreInput" placeholder="Nombre domiciliario..." list="personal-list" oninput="actualizarDatalist(this.value)">
+            <input type="text" id="nombreInput" placeholder="Nombre domiciliario..." list="personal-list"
+                oninput="actualizarDatalist(this.value)">
             <button class="btn-header btn-add" id="btn-agregar" onclick="agregar()"><i class="fas fa-plus"></i></button>
             <div class="mini-stat bg-entregas"><label>Rutas</label><b id="entregas-globales">0</b></div>
             <div class="mini-stat bg-tortas"><label>Tortas</label><b id="tortas-globales">0</b></div>
@@ -691,7 +701,8 @@
 
         <div class="search-wrapper">
             <i class="fas fa-search"></i>
-            <input type="text" id="busqueda" placeholder="Buscar por nombre..." oninput="actualizarDatalist(this.value); render()" list="personal-list">
+            <input type="text" id="busqueda" placeholder="Buscar por nombre..."
+                oninput="actualizarDatalist(this.value); render()" list="personal-list">
         </div>
 
         <div class="filters">
@@ -765,13 +776,15 @@
 
     <div class="modal-overlay" id="modalPersonal">
         <div class="modal-content" style="max-width: 400px;">
-            <div style="color: var(--dark); font-size: 1.5rem; margin-bottom: 5px;"><i class="fas fa-users-cog"></i></div>
-            <h3>Maestro de Personal</h3>
+            <div style="color: var(--dark); font-size: 1.5rem; margin-bottom: 5px;"><i class="fas fa-users-cog"></i>
+            </div>
+            <h3>Base de datos domiciliarios</h3>
             <div class="input-group">
                 <label>Nombre y Apellido</label>
                 <div style="display:flex; gap:5px">
-                    <input type="text" id="inputNombreMaestro" placeholder="Ej: Juan Perez">
-                    <button class="btn-header btn-add" onclick="agregarPersonalMaestro()"><i class="fas fa-plus"></i></button>
+                    <input type="text" id="inputNombreMaestro" placeholder="">
+                    <button class="btn-header btn-add" onclick="agregarPersonalMaestro()"><i
+                            class="fas fa-plus"></i></button>
                 </div>
             </div>
             <div class="personal-list-container" id="listaPersonalMaestro"></div>
@@ -829,10 +842,10 @@
             personalMaestro = data ? Object.values(data) : [];
         });
 
-        window.actualizarDatalist = function(filtro = "") {
+        window.actualizarDatalist = function (filtro = "") {
             const dl = document.getElementById('personal-list');
             if (filtro.trim().length === 0) { dl.innerHTML = ""; return; }
-            
+
             let html = "";
             const filtroMin = filtro.toLowerCase();
             personalMaestro.forEach(p => {
@@ -853,12 +866,12 @@
             await set(maestroRef, personalMaestro);
         }
 
-        window.abrirModalPersonal = function() {
+        window.abrirModalPersonal = function () {
             document.getElementById('modalPersonal').style.display = 'flex';
             renderListaMaestra();
         };
 
-        window.agregarPersonalMaestro = async function() {
+        window.agregarPersonalMaestro = async function () {
             const input = document.getElementById('inputNombreMaestro');
             const nombre = input.value.trim();
             if (!nombre) return;
@@ -871,7 +884,7 @@
             renderListaMaestra();
         };
 
-        window.eliminarPersonalMaestro = async function(id) {
+        window.eliminarPersonalMaestro = async function (id) {
             if (confirm("¿Eliminar de la lista maestra?")) {
                 personalMaestro = personalMaestro.filter(p => p.id !== id);
                 await guardarMaestro();
@@ -881,7 +894,7 @@
 
         function renderListaMaestra() {
             const container = document.getElementById('listaPersonalMaestro');
-            personalMaestro.sort((a,b) => a.nombre.localeCompare(b.nombre));
+            personalMaestro.sort((a, b) => a.nombre.localeCompare(b.nombre));
             let html = "";
             personalMaestro.forEach(p => {
                 html += `
