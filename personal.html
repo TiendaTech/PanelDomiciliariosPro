@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Personal - Pez Postre</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --primary: #2596be;
+            --danger: #f72585;
+            --dark: #000;
+            --text-main: #2b2d42;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 10px;
+            color: var(--text-main);
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        .main-logo {
+            max-width: 100px;
+            height: auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+        }
+
+        .nav-back {
+            display: inline-block;
+            margin-bottom: 15px;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .nav-back i {
+            margin-right: 5px;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .input-group input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            border: 2px solid #edf2f4;
+            outline: none;
+            font-size: 1rem;
+        }
+
+        .btn-add {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .btn-add:hover {
+            background: var(--dark);
+        }
+
+        .lista-personal {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .personal-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border: 1px solid #edf2f4;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .personal-name {
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .btn-delete {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 1.1rem;
+            opacity: 0.7;
+            transition: 0.2s;
+        }
+
+        .btn-delete:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+
+        .empty-msg {
+            text-align: center;
+            color: #8d99ae;
+            font-size: 0.9rem;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <a href="index.html" class="nav-back"><i class="fas fa-arrow-left"></i> Volver al Panel</a>
+        
+        <div class="logo-container">
+            <img src="LOGO DOMIFASTER.png" alt="Domifaster Logo" class="main-logo">
+        </div>
+        
+        <h1>Maestro de Domiciliarios</h1>
+
+        <div class="input-group">
+            <input type="text" id="nombreCompleto" placeholder="Nombre y Apellidos...">
+            <button class="btn-add" onclick="agregarPersonal()"><i class="fas fa-plus"></i></button>
+        </div>
+
+        <div class="lista-personal" id="lista-personal">
+            <!-- Cargando... -->
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyAYUF9VnjtlMj-gOqYgoG2q1ZxIzv8pbEQ",
+            authDomain: "panel-domiciliarios.firebaseapp.com",
+            databaseURL: "https://panel-domiciliarios-default-rtdb.firebaseio.com",
+            projectId: "panel-domiciliarios",
+            storageBucket: "panel-domiciliarios.firebasestorage.app",
+            messagingSenderId: "792090199596",
+            appId: "1:792090199596:web:37f734c9ccc653911c7389"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const persRef = ref(db, 'personal_maestro');
+
+        let personal = [];
+
+        onValue(persRef, (snapshot) => {
+            const data = snapshot.val();
+            personal = data ? Object.values(data) : [];
+            render();
+        });
+
+        async function guardar() {
+            await set(persRef, personal);
+        }
+
+        window.agregarPersonal = function() {
+            const input = document.getElementById('nombreCompleto');
+            const nombre = input.value.trim();
+            if (!nombre) return;
+            
+            if (personal.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) {
+                alert("Este nombre ya está en la lista.");
+                return;
+            }
+
+            personal.push({ id: Date.now(), nombre: nombre });
+            input.value = "";
+            guardar();
+        };
+
+        window.eliminar = function(id) {
+            if (confirm("¿Eliminar de la lista maestra?")) {
+                personal = personal.filter(p => p.id !== id);
+                guardar();
+            }
+        };
+
+        function render() {
+            const lista = document.getElementById('lista-personal');
+            if (personal.length === 0) {
+                lista.innerHTML = '<div class="empty-msg">No hay domiciliarios guardados.</div>';
+                return;
+            }
+
+            // Ordenar alfabéticamente
+            personal.sort((a, b) => a.nombre.localeCompare(b.nombre));
+
+            let html = "";
+            personal.forEach(p => {
+                html += `
+                    <div class="personal-item">
+                        <span class="personal-name">${p.nombre}</span>
+                        <button class="btn-delete" onclick="eliminar(${p.id})"><i class="fas fa-times-circle"></i></button>
+                    </div>
+                `;
+            });
+            lista.innerHTML = html;
+        }
+    </script>
+</body>
+</html>
