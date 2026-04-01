@@ -1,148 +1,564 @@
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Domiciliarios Pro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
-    
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
 
     <style>
-        :root { 
-            --primary: #4361ee; --success: #00b894; --danger: #f72585; 
-            --warning: #f8961e; --dark: #2d3436; --text-main: #2b2d42;
-            --excel-color: #1d6f42; --fish: #4cc9f0;
+        :root {
+            --primary: #2596be;
+            --success: #00b894;
+            --danger: #f72585;
+            --warning: #f8961e;
+            --dark: hsl(0, 0, 0);
+            --text-main: #2b2d42;
+            --excel-color: #1d6f42;
+            --fish: #4cc9f0;
         }
-        
-        body { font-family: 'Outfit', sans-serif; background: #f0f2f5; margin: 0; padding: 10px; color: var(--text-main); }
-        .container { max-width: 1000px; margin: auto; background: white; padding: 15px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-        
-        h1 { text-align: center; color: var(--primary); font-size: 1.6rem; margin: 10px 0 20px 0; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: #f0f2f5;
+            margin: 0;
+            padding: 10px;
+            color: var(--text-main);
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            background: white;
+            padding: 15px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            font-size: 1.6rem;
+            margin: 5px 0 20px 0;
+        }
+
+        .logo-container {
+            text-align: center;
+            margin-bottom: 5px;
+        }
+
+        .main-logo {
+            max-width: 120px;
+            height: auto;
+            transition: 0.3s;
+        }
+
+        .main-logo:hover {
+            transform: scale(1.05);
+        }
 
         /* --- HEADER --- */
-        .header-grid { 
-            display: grid; 
-            grid-template-columns: 2fr repeat(6, auto); 
-            gap: 8px; margin-bottom: 15px; align-items: center;
+        .header-grid {
+            display: grid;
+            grid-template-columns: 2fr repeat(6, auto);
+            gap: 8px;
+            margin-bottom: 15px;
+            align-items: center;
         }
-        .header-grid input { padding: 12px; border-radius: 10px; border: 2px solid #edf2f4; outline: none; width: 100%; box-sizing: border-box; }
-        
+
+        .header-grid input {
+            padding: 12px;
+            border-radius: 10px;
+            border: 2px solid #edf2f4;
+            outline: none;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
         /* Estilo para input deshabilitado */
-        .header-grid input:disabled { background: #f8f9fa; cursor: not-allowed; color: #adb5bd; }
+        .header-grid input:disabled {
+            background: #f8f9fa;
+            cursor: not-allowed;
+            color: #adb5bd;
+        }
 
         .btn-header {
-            height: 45px; padding: 0 15px; border-radius: 10px; border: none; color: white;
-            font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s;
+            height: 45px;
+            padding: 0 15px;
+            border-radius: 10px;
+            border: none;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: 0.2s;
         }
-        .btn-add { background: var(--primary); min-width: 45px; }
-        .btn-excel { background: var(--excel-color); }
-        .btn-clear { background: var(--danger); }
-        
+
+        .btn-add {
+            background: var(--primary);
+            min-width: 45px;
+        }
+
+        .btn-excel {
+            background: var(--excel-color);
+        }
+
+        .btn-clear {
+            background: var(--danger);
+        }
+
         .mini-stat {
-            height: 45px; padding: 0 12px; border-radius: 10px; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; min-width: 70px; color: white; font-size: 0.7rem;
+            height: 45px;
+            padding: 0 12px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-width: 70px;
+            color: white;
+            font-size: 0.7rem;
         }
-        .mini-stat b { font-size: 1rem; line-height: 1; }
-        .bg-rutas { background: var(--dark); }
-        .bg-entregas { background: var(--success); }
-        .bg-tortas { background: var(--fish); }
+
+        .mini-stat b {
+            font-size: 1rem;
+            line-height: 1;
+        }
+
+        .bg-rutas {
+            background: var(--dark);
+        }
+
+        .bg-entregas {
+            background: var(--success);
+        }
+
+        .bg-tortas {
+            background: var(--fish);
+        }
 
         /* --- LISTA Y TARJETAS --- */
-        .lista { display: flex; flex-direction: column; gap: 8px; }
-        .item { 
-            padding: 12px 16px; background: white; border-radius: 18px; border: 1.5px solid #f1f3f5;
-            display: flex; justify-content: space-between; align-items: center; gap: 10px; transition: 0.2s;
+        .lista {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
-        .item:hover { border-color: #d1d9e6; transform: translateY(-1px); }
-        
-        .info-col { flex: 1; }
-        .dom-name { font-weight: 600; font-size: 1.1rem; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
-        
-        .stats-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-        
-        .time-badge { color: var(--primary); font-weight: 700; background: #f0f3ff; padding: 4px 8px; border-radius: 8px; font-size: 0.85rem; display: flex; align-items: center; gap: 4px; }
-        .stat-box { display: flex; align-items: center; gap: 4px; background: #f8f9fa; padding: 4px 10px; border-radius: 8px; font-size: 0.85rem; color: #8d99ae; font-weight: 600; }
-        .stat-box b { color: var(--dark); font-weight: 800; }
-        .val-e { color: var(--success) !important; }
-        .val-t { color: var(--fish) !important; }
 
-        .btn-discount { 
-            background: #fff0f3; border: none; color: var(--danger); cursor: pointer; 
-            font-size: 1rem; width: 28px; height: 28px; border-radius: 8px; 
-            display: flex; align-items: center; justify-content: center; transition: 0.2s;
+        .item {
+            padding: 12px 16px;
+            background: white;
+            border-radius: 18px;
+            border: 1.5px solid #f1f3f5;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            transition: 0.2s;
+        }
+
+        .item:hover {
+            border-color: #d1d9e6;
+            transform: translateY(-1px);
+        }
+
+        .info-col {
+            flex: 1;
+        }
+
+        .dom-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stats-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+
+        .time-badge {
+            color: var(--primary);
+            font-weight: 700;
+            background: #eef8fb;
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .stat-box {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            background: #f8f9fa;
+            padding: 4px 10px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #8d99ae;
+            font-weight: 600;
+        }
+
+        .stat-box b {
+            color: var(--dark);
+            font-weight: 800;
+        }
+
+        .val-e {
+            color: var(--success) !important;
+        }
+
+        .val-t {
+            color: var(--fish) !important;
+        }
+
+        .btn-discount {
+            background: #fff0f3;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 1rem;
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.2s;
             margin-left: 2px;
         }
-        .btn-discount:hover { background: var(--danger); color: white; }
 
-        .tag { font-size: 0.65rem; font-weight: 800; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; }
-        .activo { background: #e3f2fd; color: #1976d2; }
-        .ruta { background: #fff3e0; color: #ef6c00; }
-        .almorzando { background: #fce4ec; color: #c2185b; }
-        .inactivo { background: #f5f5f5; color: #757575; }
-        .tag-done { font-size: 0.65rem; background: #e8f5e9; color: #2e7d32; padding: 2px 8px; border-radius: 20px; font-weight: 600; }
-        
-        .actions { display: flex; gap: 6px; align-items: center; }
-        .btn-act { width: 38px; height: 38px; border-radius: 10px; border: 1.5px solid #edf2f4; background: white; cursor: pointer; transition: 0.2s; font-size: 1rem; }
-        .btn-act:hover { background: #f8f9fa; border-color: #d1d9e6; }
-        .btn-delete { color: var(--danger); border-color: #ffdce5; }
+        .btn-discount:hover {
+            background: var(--danger);
+            color: white;
+        }
 
-        .search-wrapper { position: relative; margin-bottom: 12px; }
-        .search-wrapper i { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); color: #8d99ae; }
-        .search-wrapper input { padding: 10px 10px 10px 40px; width: 100%; border-radius: 10px; border: 1.5px solid #edf2f4; box-sizing: border-box; }
-        
-        .filters { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 15px; }
-        .filter-card { background: white; padding: 8px 4px; border-radius: 12px; text-align: center; cursor: pointer; border: 1.5px solid #f1f3f5; }
-        .filter-card span { display: block; font-size: 1rem; font-weight: 700; }
-        .filter-card label { font-size: 0.6rem; color: #8d99ae; cursor: pointer; font-weight: 600; }
-        .filter-card.active { border-color: var(--primary); background: #f0f3ff; }
+        .tag {
+            font-size: 0.65rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            border-radius: 6px;
+        }
+
+        .activo {
+            background: #e3f2fd;
+            color: #1976d2;
+        }
+
+        .ruta {
+            background: #fff3e0;
+            color: #ef6c00;
+        }
+
+        .almorzando {
+            background: #fce4ec;
+            color: #c2185b;
+        }
+
+        .inactivo {
+            background: #f5f5f5;
+            color: #757575;
+        }
+
+        .tag-done {
+            font-size: 0.65rem;
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .actions {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .btn-act {
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: 1.5px solid #edf2f4;
+            background: white;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 1rem;
+        }
+
+        .btn-act:hover {
+            background: #f8f9fa;
+            border-color: #d1d9e6;
+        }
+
+        .btn-delete {
+            color: var(--danger);
+            border-color: #ffdce5;
+        }
+
+        .search-wrapper {
+            position: relative;
+            margin-bottom: 12px;
+        }
+
+        .search-wrapper i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #8d99ae;
+        }
+
+        .search-wrapper input {
+            padding: 10px 10px 10px 40px;
+            width: 100%;
+            border-radius: 10px;
+            border: 1.5px solid #edf2f4;
+            box-sizing: border-box;
+        }
+
+        .filters {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            margin-bottom: 15px;
+        }
+
+        .filter-card {
+            background: white;
+            padding: 8px 4px;
+            border-radius: 12px;
+            text-align: center;
+            cursor: pointer;
+            border: 1.5px solid #f1f3f5;
+        }
+
+        .filter-card span {
+            display: block;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .filter-card label {
+            font-size: 0.6rem;
+            color: #8d99ae;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .filter-card.active {
+            border-color: var(--primary);
+            background: #eef8fb;
+        }
 
         /* --- FOOTER CRÉDITOS --- */
-        .dev-footer { 
-            margin-top: 25px; padding: 15px 0; border-top: 1.5px solid #f8f9fa; 
-            text-align: center; font-family: 'Outfit', sans-serif;
+        .dev-footer {
+            margin-top: 25px;
+            padding: 15px 0;
+            border-top: 1.5px solid #f8f9fa;
+            text-align: center;
+            font-family: 'Outfit', sans-serif;
         }
-        .dev-footer p { font-size: 0.8rem; color: #8d99ae; margin: 0; text-transform: uppercase; letter-spacing: 1px; }
-        .dev-footer .dev-name { font-size: 1.1rem; font-weight: 800; color: var(--dark); margin: 4px 0; }
-        .dev-footer .dev-badge { 
-            display: inline-block; font-size: 0.7rem; background: #eef2ff; color: var(--primary); 
-            padding: 4px 12px; border-radius: 30px; font-weight: 700; margin-top: 4px;
+
+        .dev-footer p {
+            font-size: 0.8rem;
+            color: #8d99ae;
+            margin: 0;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .dev-footer .dev-name {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--dark);
+            margin: 4px 0;
+        }
+
+        .dev-footer .dev-badge {
+            display: inline-block;
+            font-size: 0.7rem;
+            background: #eef8fb;
+            color: var(--primary);
+            padding: 4px 12px;
+            border-radius: 30px;
+            font-weight: 700;
+            margin-top: 4px;
         }
 
         /* MODALES */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); display: none; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: white; padding: 20px; border-radius: 20px; width: 90%; max-width: 320px; text-align: center; }
-        .input-group { margin-bottom: 12px; text-align: left; }
-        .input-group label { display: block; font-size: 0.75rem; margin-bottom: 4px; color: #8d99ae; font-weight: 600; }
-        .input-group input { width: 100%; padding: 12px; border-radius: 10px; border: 2px solid #edf2f4; text-align: center; font-size: 1.1rem; font-weight: 700; outline: none; box-sizing: border-box; }
-        .modal-btns { display: flex; gap: 8px; margin-top: 15px; }
-        .btn-modal { flex: 1; padding: 12px; border-radius: 10px; border: none; font-weight: 700; cursor: pointer; }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 320px;
+            text-align: center;
+        }
+
+        .input-group {
+            margin-bottom: 12px;
+            text-align: left;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.75rem;
+            margin-bottom: 4px;
+            color: #8d99ae;
+            font-weight: 600;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 2px solid #edf2f4;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: 700;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        .modal-btns {
+            display: flex;
+            gap: 8px;
+            margin-top: 15px;
+        }
+
+        .btn-modal {
+            flex: 1;
+            padding: 12px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 700;
+            cursor: pointer;
+        }
+
+        .btn-scroll-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            z-index: 2000;
+        }
+
+        .btn-scroll-top:hover {
+            background: var(--dark);
+            transform: scale(1.1);
+        }
+
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.5) translateY(20px); }
+            to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        .btn-scroll-top.visible {
+            display: flex;
+            animation: fadeInScale 0.3s forwards;
+        }
 
         @media (max-width: 768px) {
-            .header-grid { display: flex; flex-wrap: wrap; gap: 4px; }
-            .header-grid input { flex: 1 0 100%; margin-bottom: 5px; }
-            .btn-header, .mini-stat { flex: 1; min-width: 0; font-size: 0.6rem; height: 40px; padding: 0 2px; }
-            .item { flex-direction: column; align-items: flex-start; }
-            .actions { width: 100%; justify-content: space-between; padding-top: 8px; margin-top: 4px; border-top: 1px solid #fafafa; }
-            .btn-act { flex: 1; height: 42px; }
+
+            .header-grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            .header-grid input {
+                flex: 1 0 100%;
+                margin-bottom: 5px;
+            }
+
+            .btn-header,
+            .mini-stat {
+                flex: 1;
+                min-width: 0;
+                font-size: 0.6rem;
+                height: 40px;
+                padding: 0 2px;
+            }
+
+            .item {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .actions {
+                width: 100%;
+                justify-content: space-between;
+                padding-top: 8px;
+                margin-top: 4px;
+                border-top: 1px solid #fafafa;
+            }
+
+            .btn-act {
+                flex: 1;
+                height: 42px;
+            }
         }
     </style>
 </head>
+
 <body>
 
     <div class="container">
+        <div class="logo-container">
+            <img src="LOGO DOMIFASTER.png" alt="Domifaster Logo" class="main-logo">
+        </div>
         <h1 id="titulo-panel">Panel Domiciliarios</h1>
 
         <div class="header-grid">
             <input type="text" id="nombreInput" placeholder="Nombre domiciliario...">
             <button class="btn-header btn-add" id="btn-agregar" onclick="agregar()"><i class="fas fa-plus"></i></button>
-            <div class="mini-stat bg-rutas"><label>Rutas</label><b id="rutas-globales">0</b></div>
             <div class="mini-stat bg-entregas"><label>Entregas</label><b id="entregas-globales">0</b></div>
             <div class="mini-stat bg-tortas"><label>Tortas</label><b id="tortas-globales">0</b></div>
             <button class="btn-header btn-excel" onclick="exportarExcel()"><i class="fas fa-file-excel"></i></button>
-            <button class="btn-header btn-clear" id="btn-borrar-todo" onclick="borrarTodo()"><i class="fas fa-trash-alt"></i></button>
+            <button class="btn-header btn-clear" id="btn-borrar-todo" onclick="borrarTodo()"><i
+                    class="fas fa-trash-alt"></i></button>
         </div>
 
         <div class="search-wrapper">
@@ -151,11 +567,16 @@
         </div>
 
         <div class="filters">
-            <div class="filter-card active" id="stat-todos" onclick="filtrar('todos')"><label>Total</label><span id="total">0</span></div>
-            <div class="filter-card" id="stat-activo" onclick="filtrar('activo')"><label>Libres</label><span id="activos">0</span></div>
-            <div class="filter-card" id="stat-ruta" onclick="filtrar('ruta')"><label>En Ruta</label><span id="ruta">0</span></div>
-            <div class="filter-card" id="stat-almorzando" onclick="filtrar('almorzando')"><label>Almuerzo</label><span id="cant-almorzando">0</span></div>
-            <div class="filter-card" id="stat-inactivo" onclick="filtrar('inactivo')"><label>Ocupados</label><span id="cant-inactivo">0</span></div>
+            <div class="filter-card active" id="stat-todos" onclick="filtrar('todos')"><label>Total</label><span
+                    id="total">0</span></div>
+            <div class="filter-card" id="stat-activo" onclick="filtrar('activo')"><label>Libres</label><span
+                    id="activos">0</span></div>
+            <div class="filter-card" id="stat-ruta" onclick="filtrar('ruta')"><label>En Ruta</label><span
+                    id="ruta">0</span></div>
+            <div class="filter-card" id="stat-almorzando" onclick="filtrar('almorzando')"><label>Almuerzo</label><span
+                    id="cant-almorzando">0</span></div>
+            <div class="filter-card" id="stat-inactivo" onclick="filtrar('inactivo')"><label>Ocupados</label><span
+                    id="cant-inactivo">0</span></div>
         </div>
 
         <div class="lista" id="lista"></div>
@@ -167,6 +588,10 @@
         </footer>
     </div>
 
+    <button id="btnScrollTop" class="btn-scroll-top" title="Subir al inicio">
+        <i class="fas fa-arrow-up"></i>
+    </button>
+
     <div class="modal-overlay" id="modalRuta">
         <div class="modal-content">
             <h3>Asignar Ruta</h3>
@@ -174,21 +599,23 @@
             <div class="input-group"><label>Total Tortas de Pescado</label><input type="number" id="inputTortas"></div>
             <div class="modal-btns">
                 <button class="btn-modal btn-cancel" onclick="cerrarModal('modalRuta')">Cancelar</button>
-                <button class="btn-modal btn-confirm" style="background:var(--primary);color:white" id="btnConfirmarRuta">Confirmar</button>
+                <button class="btn-modal btn-confirm" style="background:var(--primary);color:white"
+                    id="btnConfirmarRuta">Confirmar</button>
             </div>
         </div>
     </div>
 
     <div class="modal-overlay" id="modalAjuste">
         <div class="modal-content">
-            <div style="color: var(--danger); font-size: 1.5rem; margin-bottom: 5px;"><i class="fas fa-minus-circle"></i></div>
+            <div style="color: var(--danger); font-size: 1.5rem; margin-bottom: 5px;"><i
+                    class="fas fa-minus-circle"></i></div>
             <h3>Restar Cantidades</h3>
-            <div class="input-group"><label>Rutas a Restar</label><input type="number" id="restarRutas"></div>
             <div class="input-group"><label>Entregas a Restar</label><input type="number" id="restarEntregas"></div>
             <div class="input-group"><label>Tortas a Restar</label><input type="number" id="restarTortas"></div>
             <div class="modal-btns">
-                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalAjuste')">Volver</button>
-                <button class="btn-modal" style="background:var(--danger);color:white" id="btnConfirmarAjuste">Restar</button>
+                <button class="btn-modal btn-cancel" id="btnCerrarAjuste">Volver</button>
+                <button class="btn-modal" style="background:var(--danger);color:white"
+                    id="btnConfirmarAjuste">Restar</button>
             </div>
         </div>
     </div>
@@ -234,47 +661,139 @@
             render();
         });
 
-        async function guardar() { 
+        async function guardar() {
             if (isViewOnly) return; // Bloqueo de escritura
-            await set(domRef, domiciliarios); 
+            await set(domRef, domiciliarios);
         }
 
         window.cerrarModal = (id) => document.getElementById(id).style.display = 'none';
 
-        window.exportarExcel = async function() {
+        window.exportarExcel = async function () {
             if (domiciliarios.length === 0) return;
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('Reporte');
+
+            // Configurar columnas sin headers automáticos
             worksheet.columns = [
-                { header: 'NOMBRE', key: 'n', width: 25 }, { header: 'INGRESO', key: 'i', width: 15 },
-                { header: 'RUTAS', key: 'r', width: 10 }, { header: 'ENTREGAS', key: 'e', width: 12 },
-                { header: 'TORTAS', key: 't', width: 10 }, { header: 'ESTADO', key: 's', width: 15 }
+                { key: 'n', width: 30 },
+                { key: 'i', width: 15 },
+                { key: 'f', width: 15 },
+                { key: 'd', width: 15 },
+                { key: 'e', width: 12 },
+                { key: 't', width: 15 }
             ];
-            domiciliarios.forEach(d => {
-                worksheet.addRow({ n: d.nombre, i: d.inicioLaboral, r: d.rutasRealizadas, e: d.entregasRealizadas, t: d.tortasPescado, s: d.estado.toUpperCase() });
+
+            // --- ESPACIO PARA EL LOGO ---
+            worksheet.addRow([]);
+            worksheet.addRow([]);
+            worksheet.addRow([]);
+            worksheet.addRow([]);
+            worksheet.addRow([]);
+
+            try {
+                // Intentamos cargar el logo
+                const response = await fetch('LOGO DOMIFASTER.png');
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const logoId = workbook.addImage({
+                        buffer: arrayBuffer,
+                        extension: 'png',
+                    });
+                    worksheet.addImage(logoId, {
+                        tl: { col: 0.1, row: 0.1 },
+                        ext: { width: 120, height: 85 }
+                    });
+                }
+            } catch (err) {
+                console.warn("Logo no disponible para Excel");
+            }
+
+            // Headers manuales con diseño premium
+            const headerRow = worksheet.getRow(6);
+            headerRow.values = ['NOMBRE', 'INGRESO', 'FIN', 'DURACIÓN', 'ENTREGAS', 'TORTAS'];
+            headerRow.eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2596BE' } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                cell.border = {
+                    top: { style: 'thin' }, left: { style: 'thin' },
+                    bottom: { style: 'thin' }, right: { style: 'thin' }
+                };
             });
+            headerRow.height = 25;
+
+            let tE = 0, tT = 0;
+
+            domiciliarios.forEach(d => {
+                let duracion = "--:--";
+                if (d.finTimestamp && d.inicioTimestamp) {
+                    let diff = d.finTimestamp - d.inicioTimestamp;
+                    let hrs = Math.floor(diff / 3600000);
+                    let mins = Math.floor((diff % 3600000) / 60000);
+                    duracion = `${hrs}h ${mins}m`;
+                }
+
+                const row = worksheet.addRow({
+                    n: d.nombre,
+                    i: d.inicioLaboral,
+                    f: d.finLaboral || '--:--',
+                    d: duracion,
+                    e: d.entregasRealizadas,
+                    t: d.tortasPescado || 0
+                });
+
+                row.eachCell((cell) => {
+                    cell.alignment = { horizontal: 'center' };
+                    cell.border = {
+                        top: { style: 'thin', color: { argb: 'FFF0F0F0' } },
+                        left: { style: 'thin', color: { argb: 'FFF0F0F0' } },
+                        bottom: { style: 'thin', color: { argb: 'FFF0F0F0' } },
+                        right: { style: 'thin', color: { argb: 'FFF0F0F0' } }
+                    };
+                });
+
+                tE += (d.entregasRealizadas || 0);
+                tT += (d.tortasPescado || 0);
+            });
+
+            // Fila de Totales
+            const totalRow = worksheet.addRow({
+                n: 'TOTALES ACUMULADOS',
+                e: tE,
+                t: tT
+            });
+            totalRow.font = { bold: true };
+            totalRow.height = 20;
+            totalRow.eachCell((cell, colNumber) => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF8FB' } };
+                if (colNumber === 1) cell.alignment = { horizontal: 'right' };
+                else cell.alignment = { horizontal: 'center' };
+            });
+
             const buffer = await workbook.xlsx.writeBuffer();
-            saveAs(new Blob([buffer]), `Reporte_Domicilios.xlsx`);
+            saveAs(new Blob([buffer]), `Reporte_Pez_Postre_${new Date().toLocaleDateString()}.xlsx`);
         };
 
-        window.agregar = function() {
+        window.agregar = function () {
             if (isViewOnly) return;
             let input = document.getElementById("nombreInput");
             if (!input.value.trim()) return;
             domiciliarios.push({
                 id: Date.now(), nombre: input.value.trim(), estado: "activo",
-                inicioLaboral: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                inicioLaboral: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                inicioTimestamp: Date.now(),
+                finLaboral: "--:--",
                 rutasRealizadas: 0, entregasRealizadas: 0, tortasPescado: 0, yaAlmorzo: false
             });
             input.value = ""; guardar();
         };
 
-        window.borrarTodo = async function() {
+        window.borrarTodo = async function () {
             if (isViewOnly) return;
-            if(confirm("¿Borrar todos los datos?")) { domiciliarios = []; guardar(); }
+            if (confirm("¿Borrar todos los datos?")) { domiciliarios = []; guardar(); }
         };
 
-        window.cambiarEstado = async function(id) {
+        window.cambiarEstado = async function (id) {
             if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
             if (d.estado === "activo" || d.estado === "inactivo") {
@@ -284,7 +803,7 @@
                 inEnt.value = ""; inTor.value = ""; modal.style.display = 'flex'; inEnt.focus();
                 const data = await new Promise((resolve) => {
                     document.getElementById('btnConfirmarRuta').onclick = () => resolve({ e: parseInt(inEnt.value) || 0, t: parseInt(inTor.value) || 0 });
-                    modal.onclick = (e) => { if(e.target === modal) resolve(null); }
+                    modal.onclick = (e) => { if (e.target === modal) resolve(null); }
                 });
                 cerrarModal('modalRuta');
                 if (!data) return;
@@ -293,70 +812,82 @@
             moverAlFinal(id);
         };
 
-        window.descontarTodo = async function(id) {
+        window.descontarTodo = async function (id) {
             if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
             const modal = document.getElementById('modalAjuste');
-            const inRut = document.getElementById('restarRutas');
             const inEnt = document.getElementById('restarEntregas');
             const inTor = document.getElementById('restarTortas');
-            inRut.value = ""; inEnt.value = ""; inTor.value = ""; modal.style.display = 'flex';
+            inEnt.value = ""; inTor.value = ""; modal.style.display = 'flex';
+
             const data = await new Promise((resolve) => {
-                document.getElementById('btnConfirmarAjuste').onclick = () => resolve({ r: parseInt(inRut.value) || 0, e: parseInt(inEnt.value) || 0, t: parseInt(inTor.value) || 0 });
-                modal.onclick = (e) => { if(e.target === modal) resolve(null); }
+                document.getElementById('btnConfirmarAjuste').onclick = () => resolve({ e: parseInt(inEnt.value) || 0, t: parseInt(inTor.value) || 0 });
+                document.getElementById('btnCerrarAjuste').onclick = () => resolve(null);
+                modal.onclick = (e) => { if (e.target === modal) resolve(null); }
             });
+
             cerrarModal('modalAjuste');
             if (data) {
-                d.rutasRealizadas = Math.max(0, d.rutasRealizadas - data.r);
                 d.entregasRealizadas = Math.max(0, d.entregasRealizadas - data.e);
                 d.tortasPescado = Math.max(0, d.tortasPescado - data.t);
                 guardar();
             }
         };
 
-        window.gestionarAlmuerzo = function(id) {
+        window.gestionarAlmuerzo = function (id) {
             if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
-            if (d.estado !== "almorzando") { d.estado = "almorzando"; d.finAlmuerzo = Date.now() + TIEMPO_ALMUERZO; } 
+            if (d.estado !== "almorzando") { d.estado = "almorzando"; d.finAlmuerzo = Date.now() + TIEMPO_ALMUERZO; }
             else { d.estado = "activo"; d.finAlmuerzo = null; d.yaAlmorzo = true; moverAlFinal(id); }
             guardar();
         };
 
-        window.eliminar = async function(id) {
+        window.finalizarTurno = function (id) {
             if (isViewOnly) return;
-            if(confirm("¿Eliminar domiciliario?")) {
+            let d = domiciliarios.find(x => x.id === id);
+            if (confirm(`¿Finalizar turno de ${d.nombre}?`)) {
+                d.finLaboral = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                d.finTimestamp = Date.now();
+                d.estado = "inactivo";
+                guardar();
+            }
+        };
+
+        window.eliminar = async function (id) {
+            if (isViewOnly) return;
+            if (confirm("¿Eliminar domiciliario?")) {
                 domiciliarios = domiciliarios.filter(x => x.id !== id);
                 guardar();
             }
         };
 
-        window.toggleInactivo = function(id) {
+        window.toggleInactivo = function (id) {
             if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
             d.estado = d.estado === "inactivo" ? "activo" : "inactivo";
-            if(d.estado === "activo") moverAlFinal(id); else guardar();
+            if (d.estado === "activo") moverAlFinal(id); else guardar();
         };
 
         function moverAlFinal(id) {
             let i = domiciliarios.findIndex(x => x.id === id);
-            if(i===-1) return;
+            if (i === -1) return;
             let [item] = domiciliarios.splice(i, 1);
             domiciliarios.push(item); guardar();
         }
 
-        window.render = function() {
+        window.render = function () {
             const lista = document.getElementById("lista");
             const busq = document.getElementById("busqueda").value.toLowerCase();
             let html = ""; let ahora = Date.now();
             let c = { activo: 0, ruta: 0, almorzando: 0, inactivo: 0, rG: 0, eG: 0, tG: 0 };
-            
+
             domiciliarios.forEach(d => {
-                c[d.estado]++; c.rG += d.rutasRealizadas; c.eG += d.entregasRealizadas; c.tG += (d.tortasPescado || 0);
+                c[d.estado]++; c.eG += d.entregasRealizadas; c.tG += (d.tortasPescado || 0);
                 if (d.nombre.toLowerCase().includes(busq) && (filtroEstado === 'todos' || d.estado === filtroEstado)) {
                     let timer = "";
                     if (d.estado === "almorzando" && d.finAlmuerzo) {
                         let diff = Math.max(0, Math.floor((d.finAlmuerzo - ahora) / 1000));
-                        timer = `<span style="color:var(--danger); font-weight:800; font-size:0.8rem;">${Math.floor(diff/60)}:${(diff%60).toString().padStart(2,'0')}</span>`;
+                        timer = `<span style="color:var(--danger); font-weight:800; font-size:0.8rem;">${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
                     }
 
                     // En modo supervisor, las acciones se ocultan dinámicamente
@@ -368,11 +899,10 @@
                             <div class="info-col">
                                 <div class="dom-name">
                                     ${d.nombre} 
-                                    ${d.yaAlmorzo ? '<span class="tag-done"><i class="fas fa-check"></i> Almorzó</span>':''}
+                                    ${d.yaAlmorzo ? '<span class="tag-done"><i class="fas fa-check"></i> Almorzó</span>' : ''}
                                 </div>
                                 <div class="stats-row">
-                                    <div class="time-badge"><i class="fas fa-clock"></i> ${d.inicioLaboral}</div>
-                                    <div class="stat-box">R: <b>${d.rutasRealizadas}</b></div>
+                                    <div class="time-badge"><i class="fas fa-clock"></i> ${d.inicioLaboral} - ${d.finLaboral || '--:--'}</div>
                                     <div class="stat-box">E: <b class="val-e">${d.entregasRealizadas}</b></div>
                                     <div class="stat-box">T: <b class="val-t">${d.tortasPescado || 0}</b></div>
                                     ${discountBtnHTML}
@@ -381,9 +911,10 @@
                                 </div>
                             </div>
                             <div class="actions" ${actionsStyle}>
-                                <button class="btn-act" onclick="toggleInactivo(${d.id})" style="color:${d.estado==='inactivo'?'var(--danger)':'#ccc'}"><i class="fas fa-power-off"></i></button>
-                                <button class="btn-act" onclick="cambiarEstado(${d.id})" style="color:var(--warning)"><i class="fas ${d.estado==='ruta'?'fa-check':'fa-route'}"></i></button>
+                                <button class="btn-act" onclick="toggleInactivo(${d.id})" style="color:${d.estado === 'inactivo' ? 'var(--danger)' : '#ccc'}"><i class="fas fa-power-off"></i></button>
+                                <button class="btn-act" onclick="cambiarEstado(${d.id})" style="color:var(--warning)"><i class="fas ${d.estado === 'ruta' ? 'fa-check' : 'fa-route'}"></i></button>
                                 <button class="btn-act" onclick="gestionarAlmuerzo(${d.id})" style="color:var(--primary)"><i class="fas fa-utensils"></i></button>
+                                <button class="btn-act" onclick="finalizarTurno(${d.id})" style="color:var(--dark)"><i class="fas fa-sign-out-alt"></i></button>
                                 <button class="btn-act btn-delete" onclick="eliminar(${d.id})"><i class="fas fa-trash"></i></button>
                             </div>
                         </div>`;
@@ -395,23 +926,37 @@
             document.getElementById("ruta").innerText = c.ruta;
             document.getElementById("cant-almorzando").innerText = c.almorzando;
             document.getElementById("cant-inactivo").innerText = c.inactivo;
-            document.getElementById("rutas-globales").innerText = c.rG;
             document.getElementById("entregas-globales").innerText = c.eG;
             document.getElementById("tortas-globales").innerText = c.tG;
         };
 
-        window.filtrar = (e) => { 
-            filtroEstado = e; 
-            document.querySelectorAll('.filter-card').forEach(c => c.classList.remove('active')); 
-            document.getElementById('stat-'+e).classList.add('active'); 
-            render(); 
+        window.filtrar = (e) => {
+            filtroEstado = e;
+            document.querySelectorAll('.filter-card').forEach(c => c.classList.remove('active'));
+            document.getElementById('stat-' + e).classList.add('active');
+            render();
         };
 
         setInterval(() => {
             let ch = false; let n = Date.now();
-            domiciliarios.forEach(d => { if(d.estado === "almorzando" && d.finAlmuerzo <= n) { d.estado="activo"; d.finAlmuerzo=null; d.yaAlmorzo=true; ch=true; } });
-            if(ch) guardar(); else render();
+            domiciliarios.forEach(d => { if (d.estado === "almorzando" && d.finAlmuerzo <= n) { d.estado = "activo"; d.finAlmuerzo = null; d.yaAlmorzo = true; ch = true; } });
+            if (ch) guardar(); else render();
         }, 1000);
+
+        // --- SCROLL TO TOP ---
+        const scrollBtn = document.getElementById("btnScrollTop");
+        window.addEventListener("scroll", () => {
+            if (window.scrollY > 300) {
+                scrollBtn.classList.add("visible");
+            } else {
+                scrollBtn.classList.remove("visible");
+            }
+        });
+
+        scrollBtn.onclick = () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
     </script>
 </body>
+
 </html>
