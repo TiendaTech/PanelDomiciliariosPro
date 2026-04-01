@@ -546,6 +546,31 @@
             transform: scale(1.1);
         }
 
+        /* ESTILOS MAESTRO PERSONAL EN MODAL */
+        .personal-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin-bottom: 5px;
+        }
+
+        .personal-list-container {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+            text-align: left;
+        }
+
+        .btn-del-maestro {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+        }
+
         @keyframes fadeInScale {
             from {
                 opacity: 0;
@@ -647,13 +672,13 @@
         </div>
         <div class="title-container">
             <h1 id="titulo-panel">Panel Domiciliarios</h1>
-            <button class="btn-users" onclick="window.location.href='personal.html'" title="Gestión de Personal">
+            <button class="btn-users" onclick="abrirModalPersonal()" title="Gestión de Personal">
                 <i class="fas fa-users-cog"></i>
             </button>
         </div>
 
         <div class="header-grid">
-            <input type="text" id="nombreInput" placeholder="Nombre domiciliario..." list="personal-list">
+            <input type="text" id="nombreInput" placeholder="Nombre domiciliario..." list="personal-list" oninput="actualizarDatalist(this.value)">
             <button class="btn-header btn-add" id="btn-agregar" onclick="agregar()"><i class="fas fa-plus"></i></button>
             <div class="mini-stat bg-entregas"><label>Rutas</label><b id="entregas-globales">0</b></div>
             <div class="mini-stat bg-tortas"><label>Tortas</label><b id="tortas-globales">0</b></div>
@@ -666,7 +691,7 @@
 
         <div class="search-wrapper">
             <i class="fas fa-search"></i>
-            <input type="text" id="busqueda" placeholder="Buscar por nombre..." oninput="render()" list="personal-list">
+            <input type="text" id="busqueda" placeholder="Buscar por nombre..." oninput="actualizarDatalist(this.value); render()" list="personal-list">
         </div>
 
         <div class="filters">
@@ -738,6 +763,24 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="modalPersonal">
+        <div class="modal-content" style="max-width: 400px;">
+            <div style="color: var(--dark); font-size: 1.5rem; margin-bottom: 5px;"><i class="fas fa-users-cog"></i></div>
+            <h3>Maestro de Personal</h3>
+            <div class="input-group">
+                <label>Nombre y Apellido</label>
+                <div style="display:flex; gap:5px">
+                    <input type="text" id="inputNombreMaestro" placeholder="Ej: Juan Perez">
+                    <button class="btn-header btn-add" onclick="agregarPersonalMaestro()"><i class="fas fa-plus"></i></button>
+                </div>
+            </div>
+            <div class="personal-list-container" id="listaPersonalMaestro"></div>
+            <div class="modal-btns">
+                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalPersonal')">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
@@ -784,21 +827,71 @@
         onValue(maestroRef, (snapshot) => {
             const data = snapshot.val();
             personalMaestro = data ? Object.values(data) : [];
-            actualizarDatalist();
         });
 
-        function actualizarDatalist() {
+        window.actualizarDatalist = function(filtro = "") {
             const dl = document.getElementById('personal-list');
+            if (filtro.trim().length === 0) { dl.innerHTML = ""; return; }
+            
             let html = "";
+            const filtroMin = filtro.toLowerCase();
             personalMaestro.forEach(p => {
-                html += `<option value="${p.nombre}">`;
+                if (p.nombre.toLowerCase().includes(filtroMin)) {
+                    html += `<option value="${p.nombre}">`;
+                }
             });
             dl.innerHTML = html;
-        }
+        };
 
         async function guardar() {
             if (isViewOnly) return; // Bloqueo de escritura
             await set(domRef, domiciliarios);
+        }
+
+        async function guardarMaestro() {
+            if (isViewOnly) return;
+            await set(maestroRef, personalMaestro);
+        }
+
+        window.abrirModalPersonal = function() {
+            document.getElementById('modalPersonal').style.display = 'flex';
+            renderListaMaestra();
+        };
+
+        window.agregarPersonalMaestro = async function() {
+            const input = document.getElementById('inputNombreMaestro');
+            const nombre = input.value.trim();
+            if (!nombre) return;
+            if (personalMaestro.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) {
+                alert("Ya existe este nombre."); return;
+            }
+            personalMaestro.push({ id: Date.now(), nombre: nombre });
+            input.value = "";
+            await guardarMaestro();
+            renderListaMaestra();
+        };
+
+        window.eliminarPersonalMaestro = async function(id) {
+            if (confirm("¿Eliminar de la lista maestra?")) {
+                personalMaestro = personalMaestro.filter(p => p.id !== id);
+                await guardarMaestro();
+                renderListaMaestra();
+            }
+        };
+
+        function renderListaMaestra() {
+            const container = document.getElementById('listaPersonalMaestro');
+            personalMaestro.sort((a,b) => a.nombre.localeCompare(b.nombre));
+            let html = "";
+            personalMaestro.forEach(p => {
+                html += `
+                    <div class="personal-row">
+                        <span>${p.nombre}</span>
+                        <button class="btn-del-maestro" onclick="eliminarPersonalMaestro(${p.id})"><i class="fas fa-trash"></i></button>
+                    </div>
+                `;
+            });
+            container.innerHTML = html || '<p style="color:#8d99ae; font-size:0.8rem">No hay personal registrado.</p>';
         }
 
         window.cerrarModal = (id) => document.getElementById(id).style.display = 'none';
