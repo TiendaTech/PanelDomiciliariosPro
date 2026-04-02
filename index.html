@@ -10,6 +10,7 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
         :root {
@@ -56,7 +57,7 @@
             position: relative;
         }
 
-        .btn-users {
+        .btn-users, .btn-dashboard {
             background: #000000;
             color: white;
             border: none;
@@ -71,10 +72,8 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
 
-        .btn-users:hover {
-            transform: scale(1.1);
-            background: var(--primary);
-        }
+        .btn-dashboard { background: var(--primary); }
+        .btn-users:hover, .btn-dashboard:hover { transform: scale(1.1); filter: brightness(1.2); }
 
         .logo-container {
             text-align: center;
@@ -208,7 +207,8 @@
             margin-bottom: 4px;
             display: flex;
             align-items: center;
-            gap: 8px;
+            flex-wrap: wrap;
+            gap: 6px;
         }
 
         .stats-row {
@@ -309,6 +309,7 @@
             text-transform: uppercase;
             padding: 4px 8px;
             border-radius: 6px;
+            white-space: nowrap;
         }
 
         .activo {
@@ -338,6 +339,24 @@
             padding: 2px 8px;
             border-radius: 20px;
             font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .medal {
+            font-size: 1.2rem;
+            margin-right: 5px;
+        }
+        .medal-oro { color: #FFD700; text-shadow: 0 0 5px rgba(255,215,0,0.3); }
+        .medal-plata { color: #C0C0C0; }
+        .medal-bronce { color: #CD7F32; }
+
+        .btn-wa {
+            color: #25D366 !important;
+            border-color: #dcf8c6 !important;
+        }
+        .btn-wa:hover {
+            background: #25D366 !important;
+            color: white !important;
         }
 
         .actions {
@@ -469,16 +488,23 @@
             display: none;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            z-index: 2000;
+            overflow-y: auto;
+            padding: 20px 10px;
+            box-sizing: border-box;
         }
 
         .modal-content {
             background: white;
-            padding: 20px;
+            padding: 24px;
             border-radius: 20px;
-            width: 90%;
+            width: 100%;
             max-width: 320px;
             text-align: center;
+            max-height: calc(100vh - 80px);
+            overflow-y: auto;
+            position: relative;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
         }
 
         .input-group {
@@ -496,11 +522,11 @@
 
         .input-group input {
             width: 100%;
-            padding: 12px;
+            padding: 8px;
             border-radius: 10px;
             border: 2px solid #edf2f4;
             text-align: center;
-            font-size: 1.1rem;
+            font-size: 1rem;
             font-weight: 700;
             outline: none;
             box-sizing: border-box;
@@ -549,19 +575,43 @@
         /* ESTILOS MAESTRO PERSONAL EN MODAL */
         .personal-row {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
+            flex-direction: column;
+            padding: 12px;
             background: #f8f9fa;
             border-radius: 10px;
+            margin-bottom: 8px;
+            position: relative;
+        }
+
+        .personal-info-main {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 5px;
+            font-weight: 700;
+            font-size: 1rem;
+        }
+
+        .personal-details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 5px;
+            font-size: 0.75rem;
+            color: #6c757d;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
 
         .personal-list-container {
-            max-height: 300px;
+            max-height: 400px;
             overflow-y: auto;
-            margin-top: 15px;
+            margin-top: 20px;
             text-align: left;
+            padding-right: 5px;
         }
 
         .btn-del-maestro {
@@ -665,9 +715,13 @@
                 flex-direction: row !important;
             }
 
-            .modal-content .btn-add {
-                min-width: 50px !important;
-                height: 48px !important;
+            .modal-content .grid-maestro {
+                grid-template-columns: 1fr !important;
+            }
+
+            .modal-content {
+                padding: 15px !important;
+                max-width: 95% !important;
             }
         }
     </style>
@@ -680,6 +734,9 @@
             <img src="LOGO DOMIFASTER.png" alt="Domifaster Logo" class="main-logo">
         </div>
         <div class="title-container">
+            <button class="btn-dashboard" onclick="abrirModalDashboard()" title="Reportes y Gráficas">
+                <i class="fas fa-chart-line"></i>
+            </button>
             <h1 id="titulo-panel">Panel Domiciliarios</h1>
             <button class="btn-users" onclick="abrirModalPersonal()" title="Gestión de Personal">
                 <i class="fas fa-users-cog"></i>
@@ -731,7 +788,7 @@
         <i class="fas fa-arrow-up"></i>
     </button>
 
-    <div class="modal-overlay" id="modalRuta">
+    <div class="modal-overlay" id="modalRuta" onclick="if(event.target === this) cerrarModal(this.id)">
         <div class="modal-content">
             <h3>Asignar Ruta</h3>
             <div class="input-group"><label>Total Entregas</label><input type="number" id="inputEntregas"></div>
@@ -744,7 +801,7 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="modalAjuste">
+    <div class="modal-overlay" id="modalAjuste" onclick="if(event.target === this) cerrarModal(this.id)">
         <div class="modal-content">
             <div style="color: var(--danger); font-size: 1.5rem; margin-bottom: 5px;"><i
                     class="fas fa-minus-circle"></i></div>
@@ -759,7 +816,7 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="modalSumar">
+    <div class="modal-overlay" id="modalSumar" onclick="if(event.target === this) cerrarModal(this.id)">
         <div class="modal-content">
             <div style="color: var(--primary); font-size: 1.5rem; margin-bottom: 5px;"><i
                     class="fas fa-plus-circle"></i></div>
@@ -774,22 +831,68 @@
         </div>
     </div>
 
-    <div class="modal-overlay" id="modalPersonal">
-        <div class="modal-content" style="max-width: 400px;">
+    <div class="modal-overlay" id="modalPersonal" onclick="if(event.target === this) cerrarModal(this.id)">
+        <div class="modal-content" style="max-width: 480px;">
             <div style="color: var(--dark); font-size: 1.5rem; margin-bottom: 5px;"><i class="fas fa-users-cog"></i>
             </div>
-            <h3>Base de datos domiciliarios</h3>
-            <div class="input-group">
-                <label>Nombre y Apellido</label>
-                <div style="display:flex; gap:5px">
-                    <input type="text" id="inputNombreMaestro" placeholder="">
-                    <button class="btn-header btn-add" onclick="agregarPersonalMaestro()"><i
-                            class="fas fa-plus"></i></button>
+            <h3>Base de Datos Domiciliarios</h3>
+            
+            <div class="grid-maestro" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left;">
+                <div class="input-group" style="grid-column: span 2;">
+                    <label>Nombre y Apellido</label>
+                    <input type="text" id="inputNombreMaestro" placeholder="Nombre completo">
+                </div>
+                <div class="input-group">
+                    <label>Cédula</label>
+                    <input type="text" id="inputCedulaMaestro" placeholder="CC">
+                </div>
+                <div class="input-group">
+                    <label>Contacto</label>
+                    <input type="text" id="inputContactoMaestro" placeholder="Celular">
+                </div>
+                <div class="input-group">
+                    <label>Correo</label>
+                    <input type="email" id="inputCorreoMaestro" placeholder="Email">
+                </div>
+                <div class="input-group">
+                    <label>Placa Moto</label>
+                    <input type="text" id="inputPlacaMaestro" placeholder="ABC-123">
+                </div>
+                <div class="input-group" style="grid-column: span 2;">
+                    <label>Número de Cuenta</label>
+                    <input type="text" id="inputCuentaMaestro" placeholder="Banco / Ahorros / N°">
                 </div>
             </div>
+
+            <button class="btn-header btn-add" onclick="agregarPersonalMaestro()" style="width: 100%; margin-top: 10px; height: 45px;">
+                <i class="fas fa-plus"></i> Guardar en Base de Datos
+            </button>
+
+            <button class="btn-header btn-excel" onclick="exportarMaestroExcel()" style="width: 100%; margin-top: 5px; height: 45px;">
+                <i class="fas fa-file-excel"></i> Exportar Base de Datos
+            </button>
+
+
+
             <div class="personal-list-container" id="listaPersonalMaestro"></div>
             <div class="modal-btns">
-                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalPersonal')">Cerrar</button>
+                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalPersonal')" style="width: 100%; background: #eee;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalDashboard" onclick="if(event.target === this) cerrarModal(this.id)">
+        <div class="modal-content" style="max-width: 600px;">
+            <h3>📊 Dashboard de Rendimiento</h3>
+            <div style="margin-top:15px">
+                <canvas id="chartRendimiento" height="150"></canvas>
+            </div>
+            
+            <h3 style="margin-top:25px">📋 Historial de Reportes</h3>
+            <div class="personal-list-container" id="listaHistorial" style="max-height: 250px;"></div>
+            
+            <div class="modal-btns">
+                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalDashboard')" style="width: 100%; background: #eee;">Cerrar</button>
             </div>
         </div>
     </div>
@@ -825,9 +928,13 @@
         const db = getDatabase(app);
         const domRef = ref(db, 'domiciliarios');
         const maestroRef = ref(db, 'personal_maestro');
+        const historialRef = ref(db, 'historial');
 
         let domiciliarios = [];
         let personalMaestro = [];
+        let historialData = [];
+        let chartInstance = null;
+        let editIdMaestro = null; 
         let filtroEstado = 'todos';
         const TIEMPO_ALMUERZO = 35 * 60 * 1000;
 
@@ -840,6 +947,11 @@
         onValue(maestroRef, (snapshot) => {
             const data = snapshot.val();
             personalMaestro = data ? Object.values(data) : [];
+        });
+
+        onValue(historialRef, (snapshot) => {
+            const data = snapshot.val();
+            historialData = data ? Object.values(data) : [];
         });
 
         window.actualizarDatalist = function (filtro = "") {
@@ -872,16 +984,78 @@
         };
 
         window.agregarPersonalMaestro = async function () {
-            const input = document.getElementById('inputNombreMaestro');
-            const nombre = input.value.trim();
-            if (!nombre) return;
-            if (personalMaestro.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) {
-                alert("Ya existe este nombre."); return;
+            const fields = {
+                nombre: document.getElementById('inputNombreMaestro'),
+                cedula: document.getElementById('inputCedulaMaestro'),
+                contacto: document.getElementById('inputContactoMaestro'),
+                correo: document.getElementById('inputCorreoMaestro'),
+                cuenta: document.getElementById('inputCuentaMaestro'),
+                placa: document.getElementById('inputPlacaMaestro')
+            };
+
+            const btnSave = document.querySelector('button[onclick="agregarPersonalMaestro()"]');
+            const nombre = fields.nombre.value.trim();
+            if (!nombre) { alert("El nombre es obligatorio."); return; }
+
+            if (editIdMaestro) {
+                // Modo Edición
+                const idx = personalMaestro.findIndex(p => p.id === editIdMaestro);
+                if (idx !== -1) {
+                    personalMaestro[idx] = {
+                        ...personalMaestro[idx],
+                        nombre: nombre,
+                        cedula: fields.cedula.value.trim(),
+                        contacto: fields.contacto.value.trim(),
+                        correo: fields.correo.value.trim(),
+                        cuenta: fields.cuenta.value.trim(),
+                        placa: fields.placa.value.trim()
+                    };
+                }
+                editIdMaestro = null;
+                btnSave.innerHTML = '<i class="fas fa-plus"></i> Guardar en Base de Datos';
+                btnSave.style.background = 'var(--primary)';
+            } else {
+                // Modo Nuevo
+                if (personalMaestro.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) {
+                    alert("Ya existe este nombre."); return;
+                }
+
+                personalMaestro.push({
+                    id: Date.now(),
+                    nombre: nombre,
+                    cedula: fields.cedula.value.trim(),
+                    contacto: fields.contacto.value.trim(),
+                    correo: fields.correo.value.trim(),
+                    cuenta: fields.cuenta.value.trim(),
+                    placa: fields.placa.value.trim()
+                });
             }
-            personalMaestro.push({ id: Date.now(), nombre: nombre });
-            input.value = "";
+
+            // Limpiar campos
+            Object.values(fields).forEach(f => f.value = "");
+
             await guardarMaestro();
             renderListaMaestra();
+        };
+
+        window.editarPersonalMaestro = function (id) {
+            const p = personalMaestro.find(x => x.id === id);
+            if (!p) return;
+
+            document.getElementById('inputNombreMaestro').value = p.nombre || "";
+            document.getElementById('inputCedulaMaestro').value = p.cedula || "";
+            document.getElementById('inputContactoMaestro').value = p.contacto || "";
+            document.getElementById('inputCorreoMaestro').value = p.correo || "";
+            document.getElementById('inputCuentaMaestro').value = p.cuenta || "";
+            document.getElementById('inputPlacaMaestro').value = p.placa || "";
+
+            editIdMaestro = id;
+            const btnSave = document.querySelector('button[onclick="agregarPersonalMaestro()"]');
+            btnSave.innerHTML = '<i class="fas fa-save"></i> Actualizar Cambios';
+            btnSave.style.background = 'var(--success)';
+            
+            // Hacer scroll hasta arriba del modal para ver los campos
+            document.querySelector('#modalPersonal .modal-content').scrollTo({ top: 0, behavior: 'smooth' });
         };
 
         window.eliminarPersonalMaestro = async function (id) {
@@ -899,15 +1073,43 @@
             personalMaestro.forEach(p => {
                 html += `
                     <div class="personal-row">
-                        <span>${p.nombre}</span>
-                        <button class="btn-del-maestro" onclick="eliminarPersonalMaestro(${p.id})"><i class="fas fa-trash"></i></button>
+                        <div class="personal-info-main">
+                            <span>${p.nombre}</span>
+                            <div style="display:flex; gap:10px">
+                                <button class="btn-del-maestro" style="color:var(--primary)" onclick="editarPersonalMaestro(${p.id})"><i class="fas fa-edit"></i></button>
+                                <button class="btn-del-maestro" onclick="eliminarPersonalMaestro(${p.id})"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </div>
+                        <div class="personal-details-grid">
+                            <div class="detail-item"><i class="fas fa-id-card"></i> ${p.cedula || '---'}</div>
+                            <div class="detail-item"><i class="fas fa-phone"></i> ${p.contacto || '---'}</div>
+                            <div class="detail-item"><i class="fas fa-envelope"></i> ${p.correo || '---'}</div>
+                            <div class="detail-item"><i class="fas fa-motorcycle"></i> ${p.placa || '---'}</div>
+                            <div class="detail-item" style="grid-column: span 2;"><i class="fas fa-credit-card"></i> ${p.cuenta || '---'}</div>
+                        </div>
                     </div>
                 `;
             });
             container.innerHTML = html || '<p style="color:#8d99ae; font-size:0.8rem">No hay personal registrado.</p>';
         }
 
-        window.cerrarModal = (id) => document.getElementById(id).style.display = 'none';
+        window.cerrarModal = (id) => {
+            if (id === 'modalPersonal') {
+                editIdMaestro = null;
+                const btnSave = document.querySelector('button[onclick="agregarPersonalMaestro()"]');
+                if (btnSave) {
+                    btnSave.innerHTML = '<i class="fas fa-plus"></i> Guardar en Base de Datos';
+                    btnSave.style.background = 'var(--primary)';
+                }
+                // Limpiar campos
+                const ids = ['inputNombreMaestro', 'inputCedulaMaestro', 'inputContactoMaestro', 'inputCorreoMaestro', 'inputCuentaMaestro', 'inputPlacaMaestro'];
+                ids.forEach(i => {
+                    const el = document.getElementById(i);
+                    if (el) el.value = "";
+                });
+            }
+            document.getElementById(id).style.display = 'none';
+        };
 
         window.exportarExcel = async function () {
             if (domiciliarios.length === 0) return;
@@ -916,12 +1118,17 @@
 
             // Configurar columnas según requerimiento: Fecha, Nombre, Ingreso, Salida, Horas, Entregas
             worksheet.columns = [
-                { key: 'fecha', width: 15 },
-                { key: 'nombre', width: 30 },
-                { key: 'ingreso', width: 15 },
-                { key: 'salida', width: 15 },
-                { key: 'horas', width: 15 },
-                { key: 'entregas', width: 15 }
+                { key: 'fecha', width: 12 },
+                { key: 'nombre', width: 25 },
+                { key: 'cedula', width: 12 },
+                { key: 'contacto', width: 15 },
+                { key: 'correo', width: 20 },
+                { key: 'placa', width: 10 },
+                { key: 'cuenta', width: 25 },
+                { key: 'ingreso', width: 12 },
+                { key: 'salida', width: 12 },
+                { key: 'horas', width: 12 },
+                { key: 'entregas', width: 10 }
             ];
 
             // --- ESPACIO PARA EL LOGO ---
@@ -951,7 +1158,7 @@
 
             // Headers manuales
             const headerRow = worksheet.getRow(6);
-            headerRow.values = ['FECHA', 'NOMBRE', 'INGRESO', 'SALIDA', 'HORAS', 'ENTREGAS'];
+            headerRow.values = ['FECHA', 'NOMBRE', 'CÉDULA', 'CONTACTO', 'CORREO', 'PLACA', 'CUENTA', 'INGRESO', 'SALIDA', 'HORAS', 'ENTREGAS'];
             headerRow.eachCell((cell) => {
                 cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2596BE' } };
@@ -977,6 +1184,11 @@
                 const row = worksheet.addRow({
                     fecha: new Date().toLocaleDateString(),
                     nombre: d.nombre,
+                    cedula: d.cedula || '--',
+                    contacto: d.contacto || '--',
+                    correo: d.correo || '--',
+                    placa: d.placa || '--',
+                    cuenta: d.cuenta || '--',
                     ingreso: d.inicioLaboral,
                     salida: d.finLaboral || '--:--',
                     horas: duracion,
@@ -1014,12 +1226,77 @@
             saveAs(new Blob([buffer]), `Reporte_Pez_Postre_${new Date().toLocaleDateString()}.xlsx`);
         };
 
+        window.exportarMaestroExcel = async function () {
+            if (personalMaestro.length === 0) { alert("No hay datos para exportar."); return; }
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Base de Datos');
+
+            worksheet.columns = [
+                { header: 'NOMBRE Y APELLIDO', key: 'nombre', width: 35 },
+                { header: 'CÉDULA', key: 'cedula', width: 15 },
+                { header: 'CONTACTO', key: 'contacto', width: 15 },
+                { header: 'CORREO', key: 'correo', width: 25 },
+                { header: 'PLACA MOTO', key: 'placa', width: 12 },
+                { header: 'NÚMERO DE CUENTA', key: 'cuenta', width: 35 }
+            ];
+
+            // --- ESPACIO PARA LOGO ---
+            worksheet.insertRow(1, []);
+            worksheet.insertRow(2, []);
+            worksheet.insertRow(3, []);
+            worksheet.insertRow(4, []);
+            worksheet.insertRow(5, []);
+
+            try {
+                const response = await fetch('LOGO DOMIFASTER.png');
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const logoId = workbook.addImage({ buffer: arrayBuffer, extension: 'png' });
+                    worksheet.addImage(logoId, { tl: { col: 2, row: 0.2 }, ext: { width: 120, height: 85 } });
+                }
+            } catch (err) { }
+
+            // Formato de Headers
+            const headerRow = worksheet.getRow(6);
+            headerRow.eachCell((cell) => {
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2596BE' } };
+                cell.alignment = { horizontal: 'center' };
+            });
+
+            personalMaestro.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(p => {
+                worksheet.addRow({
+                    nombre: p.nombre,
+                    cedula: p.cedula || '--',
+                    contacto: p.contacto || '--',
+                    correo: p.correo || '--',
+                    placa: p.placa || '--',
+                    cuenta: p.cuenta || '--'
+                });
+            });
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            saveAs(new Blob([buffer]), `Base_De_Datos_Domiciliarios_${new Date().toLocaleDateString()}.xlsx`);
+        };
+
         window.agregar = function () {
             if (isViewOnly) return;
             let input = document.getElementById("nombreInput");
-            if (!input.value.trim()) return;
+            const nombreTxt = input.value.trim();
+            if (!nombreTxt) return;
+
+            // Buscar datos en el maestro
+            const maestro = personalMaestro.find(p => p.nombre.toLowerCase() === nombreTxt.toLowerCase());
+
             domiciliarios.push({
-                id: Date.now(), nombre: input.value.trim(), estado: "activo",
+                id: Date.now(),
+                nombre: nombreTxt,
+                cedula: maestro ? maestro.cedula : "",
+                contacto: maestro ? maestro.contacto : "",
+                correo: maestro ? maestro.correo : "",
+                cuenta: maestro ? maestro.cuenta : "",
+                placa: maestro ? maestro.placa : "",
+                estado: "activo",
                 inicioLaboral: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
                 inicioTimestamp: Date.now(),
                 finLaboral: "--:--",
@@ -1030,8 +1307,89 @@
 
         window.borrarTodo = async function () {
             if (isViewOnly) return;
-            if (confirm("¿Borrar todos los datos?")) { domiciliarios = []; guardar(); }
+            if (confirm("¿Borrar todos los datos? Al hacerlo se archivará el reporte de hoy en el historial.")) { 
+                // Archivar antes de borrar
+                const reporteHoy = {
+                    fecha: new Date().toLocaleDateString(),
+                    timestamp: Date.now(),
+                    totalEntregas: domiciliarios.reduce((acc, d) => acc + (d.entregasRealizadas || 0), 0),
+                    totalTortas: domiciliarios.reduce((acc, d) => acc + (d.tortasPescado || 0), 0),
+                    detalle: domiciliarios.map(d => ({ n: d.nombre, e: d.entregasRealizadas, t: d.tortasPescado }))
+                };
+                
+                if (reporteHoy.totalEntregas > 0) {
+                    const newHistRef = ref(db, 'historial/' + reporteHoy.timestamp);
+                    await set(newHistRef, reporteHoy);
+                }
+
+                domiciliarios = []; 
+                guardar(); 
+            }
         };
+
+        window.abrirModalDashboard = function() {
+            document.getElementById('modalDashboard').style.display = 'flex';
+            renderHistorial();
+            renderChart();
+        };
+
+        function renderHistorial() {
+            const container = document.getElementById('listaHistorial');
+            let html = "";
+            [...historialData].sort((a,b) => b.timestamp - a.timestamp).forEach(h => {
+                html += `
+                    <div class="personal-row" style="background:#f0f7ff">
+                        <div class="personal-info-main">
+                            <span>📅 ${h.fecha}</span>
+                            <span style="font-size:0.8rem; color:var(--primary)"><b>${h.totalEntregas}</b> Entregas</span>
+                        </div>
+                        <div style="font-size:0.7rem; color:#666">
+                            ${h.detalle.map(d => `${d.n} (${d.e})`).join(', ')}
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html || '<p>No hay reportes archivados.</p>';
+        }
+
+        function renderChart() {
+            const ctx = document.getElementById('chartRendimiento').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+            
+            // Tomar los últimos 7 reportes
+            const ultimos7 = [...historialData].sort((a,b) => a.timestamp - b.timestamp).slice(-7);
+            const labels = ultimos7.map(h => h.fecha);
+            const dataE = ultimos7.map(h => h.totalEntregas);
+            const dataT = ultimos7.map(h => h.totalTortas);
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Entregas',
+                        data: dataE,
+                        borderColor: '#2596be',
+                        backgroundColor: 'rgba(37, 150, 190, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }, {
+                        label: 'Tortas',
+                        data: dataT,
+                        borderColor: '#4cc9f0',
+                        backgroundColor: 'rgba(76, 201, 240, 0.1)',
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
 
         window.cambiarEstado = async function (id) {
             if (isViewOnly) return;
@@ -1104,6 +1462,35 @@
             guardar();
         };
 
+        window.enviarWhatsApp = function (id) {
+            const d = domiciliarios.find(x => x.id === id);
+            if (!d) return;
+            
+            // Intento obtener el contacto del registro activo, sino del maestro
+            let contact = d.contacto;
+            if (!contact) {
+                const maestro = personalMaestro.find(p => p.nombre.toLowerCase() === d.nombre.toLowerCase());
+                if (maestro) contact = maestro.contacto;
+            }
+
+            if (!contact) { alert("No hay número de contacto registrado para este domiciliario."); return; }
+            
+            const cleanNum = contact.replace(/\D/g, "");
+            // Si el número tiene 10 dígitos (Colombia solo celular sin 57), le agregamos el 57
+            const finalNum = cleanNum.length === 10 ? '57' + cleanNum : cleanNum;
+
+            const msg = window.encodeURIComponent(
+                `*Resumen de Ruta - Pez Postre*\n\n` +
+                `*Fecha:* ${new Date().toLocaleDateString()}\n` +
+                `*Domi:* ${d.nombre}\n` +
+                `*Ingreso:* ${d.inicioLaboral}\n` +
+                `*Entregas:* ${d.entregasRealizadas}\n` +
+                `*Tortas:* ${d.tortasPescado || 0}\n\n` +
+                `¡Excelente trabajo!`
+            );
+            window.open(`https://wa.me/${finalNum}?text=${msg}`, '_blank');
+        };
+
         window.finalizarTurno = function (id) {
             if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
@@ -1143,6 +1530,13 @@
             let html = ""; let ahora = Date.now();
             let c = { activo: 0, ruta: 0, almorzando: 0, inactivo: 0, rG: 0, eG: 0, tG: 0 };
 
+            // Calcular Ranking (Top 3)
+            const ranked = [...domiciliarios]
+                .filter(d => d.entregasRealizadas > 0)
+                .sort((a, b) => b.entregasRealizadas - a.entregasRealizadas);
+            
+            const top3Ids = ranked.slice(0, 3).map(d => d.id);
+
             domiciliarios.forEach(d => {
                 c[d.estado]++; c.eG += d.entregasRealizadas; c.tG += (d.tortasPescado || 0);
                 if (d.nombre.toLowerCase().includes(busq) && (filtroEstado === 'todos' || d.estado === filtroEstado)) {
@@ -1151,6 +1545,13 @@
                         let diff = Math.max(0, Math.floor((d.finAlmuerzo - ahora) / 1000));
                         timer = `<span style="color:var(--danger); font-weight:800; font-size:0.8rem;">${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
                     }
+
+                    // Badge de Ranking
+                    let rankBadge = "";
+                    const rankIdx = top3Ids.indexOf(d.id);
+                    if (rankIdx === 0) rankBadge = '<i class="fas fa-medal medal medal-oro" title="Top 1"></i>';
+                    else if (rankIdx === 1) rankBadge = '<i class="fas fa-medal medal medal-plata" title="Top 2"></i>';
+                    else if (rankIdx === 2) rankBadge = '<i class="fas fa-medal medal medal-bronce" title="Top 3"></i>';
 
                     // En modo supervisor, las acciones se ocultan dinámicamente
                     const actionsStyle = isViewOnly ? 'style="display:none"' : '';
@@ -1165,6 +1566,7 @@
                         <div class="item">
                             <div class="info-col">
                                 <div class="dom-name">
+                                    ${rankBadge}
                                     ${d.nombre} 
                                     <div class="tag ${d.estado}" style="margin-left:5px">${d.estado}</div>
                                     ${d.yaAlmorzo ? '<span class="tag-done"><i class="fas fa-check"></i> Almorzó</span>' : ''}
@@ -1178,6 +1580,7 @@
                                 </div>
                             </div>
                             <div class="actions" ${actionsStyle}>
+                                <button class="btn-act btn-wa" onclick="enviarWhatsApp(${d.id})" title="Enviar resumen WhatsApp"><i class="fab fa-whatsapp"></i></button>
                                 <button class="btn-act" onclick="toggleInactivo(${d.id})" style="color:${d.estado === 'inactivo' ? 'var(--danger)' : '#ccc'}"><i class="fas fa-power-off"></i></button>
                                 <button class="btn-act" onclick="cambiarEstado(${d.id})" style="color:var(--warning)"><i class="fas ${d.estado === 'ruta' ? 'fa-check' : 'fa-route'}"></i></button>
                                 <button class="btn-act" onclick="gestionarAlmuerzo(${d.id})" style="color:var(--primary)"><i class="fas fa-utensils"></i></button>
@@ -1188,6 +1591,7 @@
                 }
             });
             lista.innerHTML = html;
+            // ... resto del render ...
             document.getElementById("total").innerText = domiciliarios.length;
             document.getElementById("activos").innerText = c.activo;
             document.getElementById("ruta").innerText = c.ruta;
