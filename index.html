@@ -1006,7 +1006,28 @@
         onValue(domRef, (snapshot) => {
             const data = snapshot.val();
             // Convertimos el objeto en array si es necesario
-            domiciliarios = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+            let tempArray = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+            
+            // --- SISTEMA DE MIGRACIÓN AUTOMÁTICA ---
+            let needsMigration = false;
+            tempArray = tempArray.map((d, index) => {
+                if (!d.id) {
+                    needsMigration = true;
+                    // Si no tiene ID, le generamos uno basado en el tiempo + index para unicidad
+                    d.id = Date.now() + index;
+                }
+                return d;
+            });
+
+            if (needsMigration && !isViewOnly) {
+                console.log("Migrando base de datos antigua...");
+                const updates = {};
+                tempArray.forEach(d => updates[d.id] = d);
+                set(domRef, updates); // Sincronización masiva de migración (un solo paso)
+            }
+            // ----------------------------------------
+
+            domiciliarios = tempArray;
             render();
         }, (error) => {
             console.error("Error cargando domiciliarios:", error);
