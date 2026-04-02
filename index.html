@@ -1112,73 +1112,132 @@
         };
 
         window.exportarExcel = async function () {
-            if (domiciliarios.length === 0) return;
+            const coordinadoresNames = ["Cristian Muñoz", "Andres Muñoz", "Nilton Cardona"];
+            const lideresNames = ["Jhon Vega", "Kevin Villada"];
+            
+            const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            const specificSortOrder = [...coordinadoresNames, ...lideresNames].map(n => norm(n));
+
+            const listaParaExportar = [];
+            personalMaestro.forEach(m => {
+                const activo = domiciliarios.find(d => norm(d.nombre) === norm(m.nombre));
+                if (activo) {
+                    listaParaExportar.push(activo);
+                } else {
+                    listaParaExportar.push({
+                        ...m,
+                        inicioLaboral: "--:--",
+                        finLaboral: "--:--",
+                        inicioTimestamp: null,
+                        finTimestamp: null,
+                        entregasRealizadas: 0,
+                        tortasPescado: 0
+                    });
+                }
+            });
+
+            const nombresMaestro = personalMaestro.map(m => norm(m.nombre));
+            domiciliarios.forEach(d => {
+                if (!nombresMaestro.includes(norm(d.nombre))) {
+                    listaParaExportar.push(d);
+                }
+            });
+
+            listaParaExportar.sort((a, b) => {
+                const nA = norm(a.nombre);
+                const nB = norm(b.nombre);
+                const idxA = specificSortOrder.indexOf(nA);
+                const idxB = specificSortOrder.indexOf(nB);
+                if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+                if (idxA !== -1) return -1;
+                if (idxB !== -1) return 1;
+                return nA.localeCompare(nB);
+            });
+
+            if (listaParaExportar.length === 0) return;
+
             const workbook = new ExcelJS.Workbook();
             const worksheet = workbook.addWorksheet('Reporte');
 
-            // Configurar columnas según requerimiento: Fecha, Nombre, Ingreso, Salida, Horas, Entregas
             worksheet.columns = [
-                { key: 'fecha', width: 12 },
-                { key: 'nombre', width: 25 },
-                { key: 'cedula', width: 12 },
-                { key: 'contacto', width: 15 },
-                { key: 'correo', width: 20 },
-                { key: 'placa', width: 10 },
-                { key: 'cuenta', width: 25 },
+                { key: 'fecha', width: 15 },
+                { key: 'nombre', width: 35 },
+                { key: 'cedula', width: 15 },
+                { key: 'contacto', width: 18 },
+                { key: 'correo', width: 30 },
+                { key: 'placa', width: 12 },
+                { key: 'cuenta', width: 35 },
                 { key: 'ingreso', width: 12 },
                 { key: 'salida', width: 12 },
                 { key: 'horas', width: 12 },
-                { key: 'entregas', width: 10 }
+                { key: 'extras', width: 12 },
+                { key: 'entregas', width: 12 },
+                { key: 'valor', width: 18 }
             ];
 
-            // --- ESPACIO PARA EL LOGO ---
-            worksheet.addRow([]);
-            worksheet.addRow([]);
-            worksheet.addRow([]);
-            worksheet.addRow([]);
-            worksheet.addRow([]);
-
+            // --- LOGO ---
+            worksheet.addRow([]); worksheet.addRow([]); worksheet.addRow([]); worksheet.addRow([]); worksheet.addRow([]);
             try {
-                // Intentamos cargar el logo
                 const response = await fetch('LOGO DOMIFASTER.png');
                 if (response.ok) {
                     const arrayBuffer = await response.arrayBuffer();
-                    const logoId = workbook.addImage({
-                        buffer: arrayBuffer,
-                        extension: 'png',
-                    });
-                    worksheet.addImage(logoId, {
-                        tl: { col: 2.2, row: 0.5 },
-                        ext: { width: 120, height: 85 }
-                    });
+                    const logoId = workbook.addImage({ buffer: arrayBuffer, extension: 'png' });
+                    worksheet.addImage(logoId, { tl: { col: 0, row: 0 }, ext: { width: 140, height: 95 } });
                 }
-            } catch (err) {
-                console.warn("Logo no disponible para Excel");
-            }
+            } catch (err) { console.warn("Logo no disponible"); }
 
-            // Headers manuales
             const headerRow = worksheet.getRow(6);
-            headerRow.values = ['FECHA', 'NOMBRE', 'CÉDULA', 'CONTACTO', 'CORREO', 'PLACA', 'CUENTA', 'INGRESO', 'SALIDA', 'HORAS', 'ENTREGAS'];
+            headerRow.values = ['FECHA', 'NOMBRE', 'CÉDULA', 'CONTACTO', 'CORREO', 'PLACA', 'CUENTA', 'INGRESO', 'SALIDA', 'HORAS', 'EXTRAS', 'ENTREGAS', 'VALOR'];
             headerRow.eachCell((cell) => {
-                cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 11 };
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2596BE' } };
                 cell.alignment = { horizontal: 'center', vertical: 'middle' };
-                cell.border = {
-                    top: { style: 'thin' }, left: { style: 'thin' },
-                    bottom: { style: 'thin' }, right: { style: 'thin' }
-                };
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
             });
             headerRow.height = 25;
 
-            let tE = 0, tT = 0;
+            let tE = 0, tV = 0;
+            let cCoord = 0, cLid = 0, cDom = 0;
 
-            domiciliarios.forEach(d => {
-                let duracion = "--:--";
-                if (d.finTimestamp && d.inicioTimestamp) {
-                    let diff = d.finTimestamp - d.inicioTimestamp;
-                    let hrs = Math.floor(diff / 3600000);
-                    let mins = Math.floor((diff % 3600000) / 60000);
-                    duracion = `${hrs}h ${mins}m`;
+            listaParaExportar.forEach(d => {
+                const isCoord = coordinadoresNames.some(n => norm(d.nombre).includes(norm(n)));
+                const isLid = lideresNames.some(n => norm(d.nombre).includes(norm(n)));
+
+                let dIng = d.inicioLaboral;
+                let dSal = d.finLaboral || '--:--';
+                let dHrs = "--:--";
+                let dExt = "0h 0m";
+                let dVal = 0;
+                let dEnt = d.entregasRealizadas || 0;
+
+                let extraHorasColor = false;
+                let extraEntregasColor = false;
+
+                if (isCoord || isLid) {
+                    if (isCoord) cCoord++; else cLid++;
+                    dIng = "08:00 AM"; dSal = "04:30 PM"; dHrs = "8h 30m"; dVal = 143000;
+                } else {
+                    cDom++;
+                    if (d.inicioLaboral !== "--:--") {
+                        dVal = 143000;
+                        let diffMins = 0;
+                        if (d.finTimestamp && d.inicioTimestamp) {
+                            diffMins = Math.floor((d.finTimestamp - d.inicioTimestamp) / 60000);
+                            let hrs = Math.floor(diffMins / 60);
+                            let mins = diffMins % 60;
+                            dHrs = `${hrs}h ${mins}m`;
+                        }
+                        if (diffMins > 510) {
+                            const extraMin = diffMins - 510;
+                            dVal += (Math.ceil(extraMin / 30) * 7000);
+                            extraHorasColor = true;
+                            dExt = `${Math.floor(extraMin / 60)}h ${extraMin % 60}m`;
+                        }
+                        if (dEnt > 18) {
+                            dVal += ((dEnt - 18) * 10000);
+                            extraEntregasColor = true;
+                        }
+                    }
                 }
 
                 const row = worksheet.addRow({
@@ -1189,38 +1248,72 @@
                     correo: d.correo || '--',
                     placa: d.placa || '--',
                     cuenta: d.cuenta || '--',
-                    ingreso: d.inicioLaboral,
-                    salida: d.finLaboral || '--:--',
-                    horas: duracion,
-                    entregas: d.entregasRealizadas
+                    ingreso: dIng,
+                    salida: dSal,
+                    horas: dHrs,
+                    extras: dExt,
+                    entregas: dEnt,
+                    valor: dVal
                 });
 
-                row.eachCell((cell) => {
-                    cell.alignment = { horizontal: 'center' };
-                    cell.border = {
-                        top: { style: 'thin', color: { argb: 'FFF0F0F0' } },
-                        left: { style: 'thin', color: { argb: 'FFF0F0F0' } },
-                        bottom: { style: 'thin', color: { argb: 'FFF0F0F0' } },
-                        right: { style: 'thin', color: { argb: 'FFF0F0F0' } }
-                    };
+                row.eachCell((cell, colNumber) => {
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                    cell.border = { top: { style: 'thin', color: { argb: 'FF000000' } }, left: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'thin', color: { argb: 'FF000000' } }, right: { style: 'thin', color: { argb: 'FF000000' } } };
+                    if ((colNumber === 10 || colNumber === 11) && extraHorasColor) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF99' } };
+                    if (colNumber === 12 && extraEntregasColor) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCFFCC' } };
                 });
 
-                tE += (d.entregasRealizadas || 0);
-                tT += (d.tortasPescado || 0);
+                row.getCell(13).numFmt = '"$"#,##0';
+                tE += dEnt; tV += dVal;
             });
 
-            // Fila de Totales
-            const totalRow = worksheet.addRow({
-                nombre: 'TOTAL ENTREGAS',
-                entregas: tE
-            });
-            totalRow.font = { bold: true };
-            totalRow.height = 20;
-            totalRow.eachCell((cell, colNumber) => {
+            const totalRow = worksheet.addRow([]);
+            totalRow.getCell(11).value = 'TOTALES';
+            totalRow.getCell(12).value = tE;
+            totalRow.getCell(13).value = tV;
+            totalRow.getCell(13).numFmt = '"$"#,##0';
+            totalRow.eachCell((cell) => {
+                cell.font = { bold: true };
                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEEF8FB' } };
-                if (colNumber === 2) cell.alignment = { horizontal: 'right' };
-                else cell.alignment = { horizontal: 'center' };
+                cell.alignment = { horizontal: 'center' };
+                cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
             });
+
+            // --- CUADRO DE RESUMEN (A LA DERECHA - Columna 15) ---
+            const summaryData = [
+                ['COORDINADORES', cCoord],
+                ['LIDERES', cLid],
+                ['DOMICILIARIOS', cDom],
+                ['ENTREGAS', tE],
+                ['VALOR', tV]
+            ];
+
+            // Posicionar resumen al lado de los headers de la tabla principal
+            summaryData.forEach((data, index) => {
+                const row = worksheet.getRow(6 + index);
+                const cellLabel = row.getCell(15);
+                const cellValue = row.getCell(16);
+                
+                cellLabel.value = data[0];
+                cellValue.value = data[1];
+
+                // Labels: Fondo azul
+                cellLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } };
+                cellLabel.font = { bold: true };
+                
+                // Values: Fondo blanco
+                cellValue.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+                cellValue.font = { bold: true };
+
+                [cellLabel, cellValue].forEach(cell => {
+                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                });
+
+                if (data[0] === 'VALOR') cellValue.numFmt = '"$"#,##0';
+            });
+            worksheet.getColumn(15).width = 20;
+            worksheet.getColumn(16).width = 15;
 
             const buffer = await workbook.xlsx.writeBuffer();
             saveAs(new Blob([buffer]), `Reporte_Pez_Postre_${new Date().toLocaleDateString()}.xlsx`);
