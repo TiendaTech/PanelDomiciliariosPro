@@ -57,6 +57,17 @@
             position: relative;
         }
 
+        .version-badge {
+            position: absolute;
+            top: -25px;
+            left: 0;
+            font-size: 0.6rem;
+            background: #eee;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: #999;
+        }
+
         .status-badge {
             position: absolute;
             top: -10px;
@@ -773,6 +784,7 @@
                 <i class="fas fa-chart-line"></i>
             </button>
             <h1 id="titulo-panel">Panel Domiciliarios</h1>
+            <div class="version-badge">V 5.0 - Atómica</div>
             <div id="connection-status" class="status-badge" title="Estado de la conexión">
                 <div class="status-dot"></div>
                 <span id="status-text">Desconectado</span>
@@ -1027,46 +1039,27 @@
             dl.innerHTML = html;
         };
 
-        async function guardar(id = null) {
-            if (isViewOnly) return;
+        async function guardar(id) {
+            if (isViewOnly || !id) return;
             try {
-                if (id) {
-                    // Actualización Atómica de un solo domiciliario
-                    const d = domiciliarios.find(x => x.id === id);
-                    if (d) {
-                        const targetRef = ref(db, `domiciliarios/${id}`);
-                        await set(targetRef, d);
-                    }
-                } else {
-                    // Sincronización completa (solo para migraciones o limpiezas)
-                    const updates = {};
-                    domiciliarios.forEach(d => {
-                        if (!d.id) d.id = Date.now() + Math.floor(Math.random() * 1000);
-                        updates[d.id] = d;
-                    });
-                    await set(domRef, updates);
+                // Actualización Atómica ESTRICTA (Solo permitimos guardar por ID individual)
+                const d = domiciliarios.find(x => x.id === id);
+                if (d) {
+                    const targetRef = ref(db, `domiciliarios/${id}`);
+                    await set(targetRef, d);
                 }
             } catch (error) {
                 console.error("Error al guardar:", error);
             }
         }
 
-        async function guardarMaestro(id = null) {
-            if (isViewOnly) return;
+        async function guardarMaestro(id) {
+            if (isViewOnly || !id) return;
             try {
-                if (id) {
-                    const p = personalMaestro.find(x => x.id === id);
-                    if (p) {
-                        const targetRef = ref(db, `personal_maestro/${id}`);
-                        await set(targetRef, p);
-                    }
-                } else {
-                    const updates = {};
-                    personalMaestro.forEach(p => {
-                        if (!p.id) p.id = Date.now() + Math.floor(Math.random() * 1000);
-                        updates[p.id] = p;
-                    });
-                    await set(maestroRef, updates);
+                const p = personalMaestro.find(x => x.id === id);
+                if (p) {
+                    const targetRef = ref(db, `personal_maestro/${id}`);
+                    await set(targetRef, p);
                 }
             } catch (error) {
                 console.error("Error al guardar maestro:", error);
@@ -1106,7 +1099,6 @@
                         placa: fields.placa.value.trim()
                     };
                 }
-                editIdMaestro = null;
                 btnSave.innerHTML = '<i class="fas fa-plus"></i> Guardar en Base de Datos';
                 btnSave.style.background = 'var(--primary)';
             } else {
@@ -1127,10 +1119,12 @@
             }
 
             // Limpiar campos
+            const addedId = editIdMaestro || personalMaestro[personalMaestro.length - 1].id;
             Object.values(fields).forEach(f => f.value = "");
 
-            await guardarMaestro();
+            await guardarMaestro(addedId);
             renderListaMaestra();
+            editIdMaestro = null;
         };
 
         window.editarPersonalMaestro = function (id) {
@@ -1155,8 +1149,7 @@
 
         window.eliminarPersonalMaestro = async function (id) {
             if (confirm("¿Eliminar de la lista maestra?")) {
-                personalMaestro = personalMaestro.filter(p => p.id !== id);
-                await guardarMaestro();
+                set(ref(db, `personal_maestro/${id}`), null);
                 renderListaMaestra();
             }
         };
