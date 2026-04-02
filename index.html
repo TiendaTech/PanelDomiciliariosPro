@@ -1522,6 +1522,7 @@
                 estado: "activo",
                 inicioLaboral: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
                 inicioTimestamp: Date.now(),
+                turnoTimestamp: Date.now(), // Marcador para la cola de turnos
                 finLaboral: "--:--",
                 rutasRealizadas: 0, entregasRealizadas: 0, tortasPescado: 0, yaAlmorzo: false
             };
@@ -1631,8 +1632,11 @@
                 cerrarModal('modalRuta');
                 if (!data) return;
                 d.estado = "ruta"; d.rutasRealizadas++; d.entregasRealizadas += data.e; d.tortasPescado += data.t;
-            } else { d.estado = "activo"; }
-            moverAlFinal(id);
+            } else { 
+                d.estado = "activo"; 
+                d.turnoTimestamp = Date.now(); // Pasa al final de la fila al activarse
+            }
+            guardar(id);
         };
 
         window.descontarTodo = async function (id) {
@@ -1682,8 +1686,15 @@
         window.gestionarAlmuerzo = function (id) {
             if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
-            if (d.estado !== "almorzando") { d.estado = "almorzando"; d.finAlmuerzo = Date.now() + TIEMPO_ALMUERZO; }
-            else { d.estado = "activo"; d.finAlmuerzo = null; d.yaAlmorzo = true; moverAlFinal(id); }
+            if (d.estado !== "almorzando") { 
+                d.estado = "almorzando"; 
+                d.finAlmuerzo = Date.now() + TIEMPO_ALMUERZO; 
+            } else { 
+                d.estado = "activo"; 
+                d.finAlmuerzo = null; 
+                d.yaAlmorzo = true; 
+                d.turnoTimestamp = Date.now(); // Pasa al final de la fila al volver del almuerzo
+            }
             guardar(id);
         };
 
@@ -1738,16 +1749,15 @@
             if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
             d.estado = d.estado === "inactivo" ? "activo" : "inactivo";
-            if (d.estado === "activo") moverAlFinal(id); else guardar(id);
+            if (d.estado === "activo") {
+                d.turnoTimestamp = Date.now(); 
+                guardar(id);
+            } else {
+                guardar(id);
+            }
         };
 
-        function moverAlFinal(id) {
-            let i = domiciliarios.findIndex(x => x.id === id);
-            if (i === -1) return;
-            let [item] = domiciliarios.splice(i, 1);
-            domiciliarios.push(item); 
-            guardar(id);
-        }
+
 
         window.render = function () {
             const lista = document.getElementById("lista");
@@ -1762,7 +1772,11 @@
             
             const top3Ids = ranked.slice(0, 3).map(d => d.id);
 
-            domiciliarios.forEach(d => {
+            // --- ORDENACIÓN POR TURNO ---
+            // Los que tienen un turno más antiguo van arriba
+            const ordenados = [...domiciliarios].sort((a,b) => (a.turnoTimestamp || 0) - (b.turnoTimestamp || 0));
+
+            ordenados.forEach(d => {
                 c[d.estado]++; c.eG += d.entregasRealizadas; c.tG += (d.tortasPescado || 0);
                 if (d.nombre.toLowerCase().includes(busq) && (filtroEstado === 'todos' || d.estado === filtroEstado)) {
                     let timer = "";
@@ -1816,7 +1830,7 @@
                 }
             });
             lista.innerHTML = html;
-            // ... resto del render ...
+            
             document.getElementById("total").innerText = domiciliarios.length;
             document.getElementById("activos").innerText = c.activo;
             document.getElementById("ruta").innerText = c.ruta;
@@ -1835,8 +1849,17 @@
 
         setInterval(() => {
             let ch = false; let n = Date.now();
-            domiciliarios.forEach(d => { if (d.estado === "almorzando" && d.finAlmuerzo <= n) { d.estado = "activo"; d.finAlmuerzo = null; d.yaAlmorzo = true; ch = true; } });
-            if (ch) guardar(); else render();
+            domiciliarios.forEach(d => { 
+                if (d.estado === "almorzando" && d.finAlmuerzo <= n) { 
+                    d.estado = "activo"; 
+                    d.finAlmuerzo = null; 
+                    d.yaAlmorzo = true; 
+                    d.turnoTimestamp = Date.now(); // Al final de la cola tras almorzar
+                    guardar(d.id); 
+                    ch = true; 
+                } 
+            });
+            if (!ch) render(); // Solo renderizamos si no hubo cambios (si hubo, el onValue lo hará)
         }, 1000);
 
         // --- SCROLL TO TOP ---
