@@ -59,29 +59,32 @@
 
         .version-badge {
             position: absolute;
-            top: -25px;
+            top: -32px;
             left: 0;
             font-size: 0.6rem;
-            background: #eee;
-            padding: 2px 6px;
-            border-radius: 4px;
-            color: #999;
+            background: #f5f5f5;
+            padding: 3px 8px;
+            border-radius: 20px;
+            color: #777;
+            border: 1px solid #eee;
         }
 
         .status-badge {
             position: absolute;
-            top: -10px;
+            top: -32px;
             right: 0;
             display: flex;
             align-items: center;
             gap: 5px;
             font-size: 0.65rem;
             font-weight: 700;
-            padding: 4px 8px;
+            padding: 3px 8px;
             border-radius: 20px;
-            background: #ffebee;
+            background: #fffafa;
             color: #d32f2f;
+            border: 1px solid #ffebee;
             transition: 0.3s;
+            z-index: 10;
         }
 
         .status-badge.online {
@@ -923,6 +926,10 @@
                 <i class="fas fa-file-excel"></i> Exportar Base de Datos
             </button>
 
+            <button class="btn-header btn-clear" onclick="borrarTodaLaBaseMaestra()" style="width: 100%; margin-top: 5px; height: 45px; background: #333;">
+                <i class="fas fa-exclamation-triangle"></i> Borrar TODA la Base de Datos
+            </button>
+
 
 
             <div class="personal-list-container" id="listaPersonalMaestro"></div>
@@ -1172,6 +1179,19 @@
             if (confirm("¿Eliminar de la lista maestra?")) {
                 set(ref(db, `personal_maestro/${id}`), null);
                 renderListaMaestra();
+            }
+        };
+
+        window.borrarTodaLaBaseMaestra = async function () {
+            if (isViewOnly) return;
+            const pass = prompt("Para confirmar el borrado de TODA la base maestra de personal, escribe la palabra: ELIMINAR");
+            if (pass === "ELIMINAR") {
+                if (confirm("¿Estás absolutamente seguro? Esta acción no se puede deshacer.")) {
+                    set(maestroRef, null); // Borrado total en la nube
+                    renderListaMaestra();
+                }
+            } else if (pass !== null) {
+                alert("Confirmación incorrecta.");
             }
         };
 
