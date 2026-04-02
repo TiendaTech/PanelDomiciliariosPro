@@ -1027,34 +1027,47 @@
             dl.innerHTML = html;
         };
 
-        async function guardar() {
+        async function guardar(id = null) {
             if (isViewOnly) return;
             try {
-                // Usamos un objeto con IDs únicos para evitar colisiones si varios dispositivos graban a la vez
-                const updates = {};
-                domiciliarios.forEach(d => {
-                    // Nos aseguramos de que cada uno tenga un ID para evitar errores de sincronización
-                    if (!d.id) d.id = Date.now() + Math.floor(Math.random() * 1000);
-                    updates[d.id] = d;
-                });
-                await set(domRef, updates);
+                if (id) {
+                    // Actualización Atómica de un solo domiciliario
+                    const d = domiciliarios.find(x => x.id === id);
+                    if (d) {
+                        const targetRef = ref(db, `domiciliarios/${id}`);
+                        await set(targetRef, d);
+                    }
+                } else {
+                    // Sincronización completa (solo para migraciones o limpiezas)
+                    const updates = {};
+                    domiciliarios.forEach(d => {
+                        if (!d.id) d.id = Date.now() + Math.floor(Math.random() * 1000);
+                        updates[d.id] = d;
+                    });
+                    await set(domRef, updates);
+                }
             } catch (error) {
                 console.error("Error al guardar:", error);
-                if (error.message.includes("permission_denied")) {
-                    alert("⚠️ ERROR AL GUARDAR: No tienes permisos en Firebase. Revisa las reglas de seguridad.");
-                }
             }
         }
 
-        async function guardarMaestro() {
+        async function guardarMaestro(id = null) {
             if (isViewOnly) return;
             try {
-                const updates = {};
-                personalMaestro.forEach(p => {
-                    if (!p.id) p.id = Date.now() + Math.floor(Math.random() * 1000);
-                    updates[p.id] = p;
-                });
-                await set(maestroRef, updates);
+                if (id) {
+                    const p = personalMaestro.find(x => x.id === id);
+                    if (p) {
+                        const targetRef = ref(db, `personal_maestro/${id}`);
+                        await set(targetRef, p);
+                    }
+                } else {
+                    const updates = {};
+                    personalMaestro.forEach(p => {
+                        if (!p.id) p.id = Date.now() + Math.floor(Math.random() * 1000);
+                        updates[p.id] = p;
+                    });
+                    await set(maestroRef, updates);
+                }
             } catch (error) {
                 console.error("Error al guardar maestro:", error);
             }
@@ -1463,8 +1476,9 @@
             // Buscar datos en el maestro
             const maestro = personalMaestro.find(p => p.nombre.toLowerCase() === nombreTxt.toLowerCase());
 
-            domiciliarios.push({
-                id: Date.now(),
+            const nuevoId = Date.now();
+            const nuevoDomi = {
+                id: nuevoId,
                 nombre: nombreTxt,
                 cedula: maestro ? maestro.cedula : "",
                 contacto: maestro ? maestro.contacto : "",
@@ -1476,8 +1490,11 @@
                 inicioTimestamp: Date.now(),
                 finLaboral: "--:--",
                 rutasRealizadas: 0, entregasRealizadas: 0, tortasPescado: 0, yaAlmorzo: false
-            });
-            input.value = ""; guardar();
+            };
+            
+            input.value = "";
+            // Mandamos directo a la nube, la UI se actualizará sola cuando Firebase responda
+            set(ref(db, `domiciliarios/${nuevoId}`), nuevoDomi); 
         };
 
         window.borrarTodo = async function () {
@@ -1497,8 +1514,7 @@
                     await set(newHistRef, reporteHoy);
                 }
 
-                domiciliarios = []; 
-                guardar(); 
+                set(domRef, null); // Borrado total en la nube
             }
         };
 
@@ -1603,7 +1619,7 @@
             if (data) {
                 d.entregasRealizadas = Math.max(0, d.entregasRealizadas - data.e);
                 d.tortasPescado = Math.max(0, d.tortasPescado - data.t);
-                guardar();
+                guardar(id);
             }
         };
 
@@ -1625,7 +1641,7 @@
             if (data) {
                 d.entregasRealizadas += data.e;
                 d.tortasPescado += data.t;
-                guardar();
+                guardar(id);
             }
         };
 
@@ -1634,7 +1650,7 @@
             let d = domiciliarios.find(x => x.id === id);
             if (d.estado !== "almorzando") { d.estado = "almorzando"; d.finAlmuerzo = Date.now() + TIEMPO_ALMUERZO; }
             else { d.estado = "activo"; d.finAlmuerzo = null; d.yaAlmorzo = true; moverAlFinal(id); }
-            guardar();
+            guardar(id);
         };
 
         window.enviarWhatsApp = function (id) {
@@ -1673,15 +1689,14 @@
                 d.finLaboral = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 d.finTimestamp = Date.now();
                 d.estado = "inactivo";
-                guardar();
+                guardar(id);
             }
         };
 
         window.eliminar = async function (id) {
             if (isViewOnly) return;
             if (confirm("¿Eliminar domiciliario?")) {
-                domiciliarios = domiciliarios.filter(x => x.id !== id);
-                guardar();
+                set(ref(db, `domiciliarios/${id}`), null);
             }
         };
 
@@ -1689,14 +1704,15 @@
             if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
             d.estado = d.estado === "inactivo" ? "activo" : "inactivo";
-            if (d.estado === "activo") moverAlFinal(id); else guardar();
+            if (d.estado === "activo") moverAlFinal(id); else guardar(id);
         };
 
         function moverAlFinal(id) {
             let i = domiciliarios.findIndex(x => x.id === id);
             if (i === -1) return;
             let [item] = domiciliarios.splice(i, 1);
-            domiciliarios.push(item); guardar();
+            domiciliarios.push(item); 
+            guardar(id);
         }
 
         window.render = function () {
