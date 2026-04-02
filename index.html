@@ -899,7 +899,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         // --- LÓGICA DE ROLES SENIOR ---
         const urlParams = new URLSearchParams(window.location.search);
@@ -940,19 +940,25 @@
 
         onValue(domRef, (snapshot) => {
             const data = snapshot.val();
-            domiciliarios = data ? Object.values(data) : [];
+            // Convertimos el objeto en array si es necesario
+            domiciliarios = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
             render();
+        }, (error) => {
+            console.error("Error cargando domiciliarios:", error);
+            if (error.message.includes("permission_denied")) {
+                alert("⚠️ ERROR DE PERMISOS: Las reglas de acceso de tu Firebase han expirado. Por favor revisa la consola de Firebase.");
+            }
         });
 
         onValue(maestroRef, (snapshot) => {
             const data = snapshot.val();
-            personalMaestro = data ? Object.values(data) : [];
-        });
+            personalMaestro = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+        }, (error) => console.error("Error cargando maestro:", error));
 
         onValue(historialRef, (snapshot) => {
             const data = snapshot.val();
-            historialData = data ? Object.values(data) : [];
-        });
+            historialData = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+        }, (error) => console.error("Error cargando historial:", error));
 
         window.actualizarDatalist = function (filtro = "") {
             const dl = document.getElementById('personal-list');
@@ -969,13 +975,33 @@
         };
 
         async function guardar() {
-            if (isViewOnly) return; // Bloqueo de escritura
-            await set(domRef, domiciliarios);
+            if (isViewOnly) return;
+            try {
+                // Usamos un objeto con IDs únicos para evitar colisiones si varios dispositivos graban a la vez
+                const updates = {};
+                domiciliarios.forEach(d => {
+                    updates[d.id] = d;
+                });
+                await set(domRef, updates);
+            } catch (error) {
+                console.error("Error al guardar:", error);
+                if (error.message.includes("permission_denied")) {
+                    alert("⚠️ ERROR AL GUARDAR: No tienes permisos en Firebase. Revisa las reglas de seguridad.");
+                }
+            }
         }
 
         async function guardarMaestro() {
             if (isViewOnly) return;
-            await set(maestroRef, personalMaestro);
+            try {
+                const updates = {};
+                personalMaestro.forEach(p => {
+                    updates[p.id] = p;
+                });
+                await set(maestroRef, updates);
+            } catch (error) {
+                console.error("Error al guardar maestro:", error);
+            }
         }
 
         window.abrirModalPersonal = function () {
