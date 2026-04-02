@@ -1015,24 +1015,31 @@
             // Convertimos el objeto en array si es necesario
             let tempArray = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
             
-            // --- SISTEMA DE MIGRACIÓN AUTOMÁTICA ---
+            // --- SISTEMA DE MIGRACIÓN PROFUNDA (EQUIDAD TOTAL) ---
             let needsMigration = false;
+            const ahoraGlobal = Date.now();
             tempArray = tempArray.map((d, index) => {
+                let changed = false;
                 if (!d.id) {
-                    needsMigration = true;
-                    // Si no tiene ID, le generamos uno basado en el tiempo + index para unicidad
-                    d.id = Date.now() + index;
+                    d.id = ahoraGlobal + index;
+                    changed = true;
                 }
+                // Si no tiene turnoTimestamp, lo tratamos como recién llegado AHORA
+                if (!d.turnoTimestamp) {
+                    d.turnoTimestamp = ahoraGlobal; 
+                    changed = true;
+                }
+                if (changed) needsMigration = true;
                 return d;
             });
 
             if (needsMigration && !isViewOnly) {
-                console.log("Migrando base de datos antigua...");
+                console.log("Normalizando turnos para cola equitativa...");
                 const updates = {};
                 tempArray.forEach(d => updates[d.id] = d);
-                set(domRef, updates); // Sincronización masiva de migración (un solo paso)
+                set(domRef, updates);
             }
-            // ----------------------------------------
+            // -----------------------------------------------------
 
             domiciliarios = tempArray;
             render();
@@ -1772,9 +1779,14 @@
             
             const top3Ids = ranked.slice(0, 3).map(d => d.id);
 
-            // --- ORDENACIÓN POR TURNO ---
-            // Los que tienen un turno más antiguo van arriba
-            const ordenados = [...domiciliarios].sort((a,b) => (a.turnoTimestamp || 0) - (b.turnoTimestamp || 0));
+            // --- ORDENACIÓN POR TURNO (FILA INDIA) ---
+            // Los que tienen turnoTimestamp menor (más viejo) aparecen arriba (primero en la fila)
+            // Los que tienen turnoTimestamp mayor (más reciente) aparecen abajo (último en la fila)
+            const ordenados = [...domiciliarios].sort((a,b) => {
+                const ta = a.turnoTimestamp || 0;
+                const tb = b.turnoTimestamp || 0;
+                return ta - tb;
+            });
 
             ordenados.forEach(d => {
                 c[d.estado]++; c.eG += d.entregasRealizadas; c.tG += (d.tortasPescado || 0);
