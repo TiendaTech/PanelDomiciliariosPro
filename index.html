@@ -101,12 +101,24 @@
         }
 
         @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.3); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.3);
+                opacity: 0.7;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
         }
 
-        .btn-users, .btn-dashboard {
+        .btn-users,
+        .btn-dashboard {
             background: #000000;
             color: white;
             border: none;
@@ -121,8 +133,15 @@
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         }
 
-        .btn-dashboard { background: var(--primary); }
-        .btn-users:hover, .btn-dashboard:hover { transform: scale(1.1); filter: brightness(1.2); }
+        .btn-dashboard {
+            background: var(--primary);
+        }
+
+        .btn-users:hover,
+        .btn-dashboard:hover {
+            transform: scale(1.1);
+            filter: brightness(1.2);
+        }
 
         .logo-container {
             text-align: center;
@@ -395,14 +414,25 @@
             font-size: 1.2rem;
             margin-right: 5px;
         }
-        .medal-oro { color: #FFD700; text-shadow: 0 0 5px rgba(255,215,0,0.3); }
-        .medal-plata { color: #C0C0C0; }
-        .medal-bronce { color: #CD7F32; }
+
+        .medal-oro {
+            color: #FFD700;
+            text-shadow: 0 0 5px rgba(255, 215, 0, 0.3);
+        }
+
+        .medal-plata {
+            color: #C0C0C0;
+        }
+
+        .medal-bronce {
+            color: #CD7F32;
+        }
 
         .btn-wa {
             color: #25D366 !important;
             border-color: #dcf8c6 !important;
         }
+
         .btn-wa:hover {
             background: #25D366 !important;
             color: white !important;
@@ -787,7 +817,7 @@
                 <i class="fas fa-chart-line"></i>
             </button>
             <h1 id="titulo-panel">Panel Domiciliarios</h1>
-            <div class="version-badge">V 5.0 - Atómica</div>
+            <div class="version-badge">V 5.1</div>
             <div id="connection-status" class="status-badge" title="Estado de la conexión">
                 <div class="status-dot"></div>
                 <span id="status-text">Desconectado</span>
@@ -890,8 +920,9 @@
             <div style="color: var(--dark); font-size: 1.5rem; margin-bottom: 5px;"><i class="fas fa-users-cog"></i>
             </div>
             <h3>Base de Datos Domiciliarios</h3>
-            
-            <div class="grid-maestro" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left;">
+
+            <div class="grid-maestro"
+                style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left;">
                 <div class="input-group" style="grid-column: span 2;">
                     <label>Nombre y Apellido</label>
                     <input type="text" id="inputNombreMaestro" placeholder="Nombre completo">
@@ -918,15 +949,18 @@
                 </div>
             </div>
 
-            <button class="btn-header btn-add" onclick="agregarPersonalMaestro()" style="width: 100%; margin-top: 10px; height: 45px;">
+            <button class="btn-header btn-add" onclick="agregarPersonalMaestro()"
+                style="width: 100%; margin-top: 10px; height: 45px;">
                 <i class="fas fa-plus"></i> Guardar en Base de Datos
             </button>
 
-            <button class="btn-header btn-excel" onclick="exportarMaestroExcel()" style="width: 100%; margin-top: 5px; height: 45px;">
+            <button class="btn-header btn-excel" onclick="exportarMaestroExcel()"
+                style="width: 100%; margin-top: 5px; height: 45px;">
                 <i class="fas fa-file-excel"></i> Exportar Base de Datos
             </button>
 
-            <button class="btn-header btn-clear" onclick="borrarTodaLaBaseMaestra()" style="width: 100%; margin-top: 5px; height: 45px; background: #333;">
+            <button class="btn-header btn-clear" onclick="borrarTodaLaBaseMaestra()"
+                style="width: 100%; margin-top: 5px; height: 45px; background: #333;">
                 <i class="fas fa-exclamation-triangle"></i> Borrar TODA la Base de Datos
             </button>
 
@@ -934,7 +968,8 @@
 
             <div class="personal-list-container" id="listaPersonalMaestro"></div>
             <div class="modal-btns">
-                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalPersonal')" style="width: 100%; background: #eee;">Cerrar</button>
+                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalPersonal')"
+                    style="width: 100%; background: #eee;">Cerrar</button>
             </div>
         </div>
     </div>
@@ -945,12 +980,19 @@
             <div style="margin-top:15px">
                 <canvas id="chartRendimiento" height="150"></canvas>
             </div>
-            
+
             <h3 style="margin-top:25px">📋 Historial de Reportes</h3>
+
+            <button class="btn-header btn-excel" onclick="exportarDashboardExcel()"
+                style="width: 100%; margin: 10px 0; height: 45px;">
+                <i class="fas fa-file-excel"></i> Exportar Histórico de Rendimiento
+            </button>
+
             <div class="personal-list-container" id="listaHistorial" style="max-height: 250px;"></div>
-            
+
             <div class="modal-btns">
-                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalDashboard')" style="width: 100%; background: #eee;">Cerrar</button>
+                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalDashboard')"
+                    style="width: 100%; background: #eee;">Cerrar</button>
             </div>
         </div>
     </div>
@@ -992,7 +1034,7 @@
         let personalMaestro = [];
         let historialData = [];
         let chartInstance = null;
-        let editIdMaestro = null; 
+        let editIdMaestro = null;
         let filtroEstado = 'todos';
         const TIEMPO_ALMUERZO = 35 * 60 * 1000;
 
@@ -1014,7 +1056,7 @@
             const data = snapshot.val();
             // Convertimos el objeto en array si es necesario
             let tempArray = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
-            
+
             // --- SISTEMA DE MIGRACIÓN PROFUNDA (EQUIDAD TOTAL) ---
             let needsMigration = false;
             const ahoraGlobal = Date.now();
@@ -1026,7 +1068,7 @@
                 }
                 // Si no tiene turnoTimestamp, lo tratamos como recién llegado AHORA
                 if (!d.turnoTimestamp) {
-                    d.turnoTimestamp = ahoraGlobal; 
+                    d.turnoTimestamp = ahoraGlobal;
                     changed = true;
                 }
                 if (changed) needsMigration = true;
@@ -1074,28 +1116,22 @@
             dl.innerHTML = html;
         };
 
-        async function guardar(id) {
-            if (isViewOnly || !id) return;
+        async function guardar(d) {
+            if (isViewOnly || !d || !d.id) return;
             try {
-                // Actualización Atómica ESTRICTA (Solo permitimos guardar por ID individual)
-                const d = domiciliarios.find(x => x.id === id);
-                if (d) {
-                    const targetRef = ref(db, `domiciliarios/${id}`);
-                    await set(targetRef, d);
-                }
+                // Seteamos directamente el objeto recibido para evitar colisiones con el estado global re-sincronizado
+                const targetRef = ref(db, `domiciliarios/${d.id}`);
+                await set(targetRef, d);
             } catch (error) {
                 console.error("Error al guardar:", error);
             }
         }
 
-        async function guardarMaestro(id) {
-            if (isViewOnly || !id) return;
+        async function guardarMaestro(p) {
+            if (isViewOnly || !p || !p.id) return;
             try {
-                const p = personalMaestro.find(x => x.id === id);
-                if (p) {
-                    const targetRef = ref(db, `personal_maestro/${id}`);
-                    await set(targetRef, p);
-                }
+                const targetRef = ref(db, `personal_maestro/${p.id}`);
+                await set(targetRef, p);
             } catch (error) {
                 console.error("Error al guardar maestro:", error);
             }
@@ -1154,10 +1190,10 @@
             }
 
             // Limpiar campos
-            const addedId = editIdMaestro || personalMaestro[personalMaestro.length - 1].id;
+            const addedObj = editIdMaestro ? personalMaestro.find(p => p.id === editIdMaestro) : personalMaestro[personalMaestro.length - 1];
             Object.values(fields).forEach(f => f.value = "");
 
-            await guardarMaestro(addedId);
+            await guardarMaestro(addedObj);
             renderListaMaestra();
             editIdMaestro = null;
         };
@@ -1177,7 +1213,7 @@
             const btnSave = document.querySelector('button[onclick="agregarPersonalMaestro()"]');
             btnSave.innerHTML = '<i class="fas fa-save"></i> Actualizar Cambios';
             btnSave.style.background = 'var(--success)';
-            
+
             // Hacer scroll hasta arriba del modal para ver los campos
             document.querySelector('#modalPersonal .modal-content').scrollTo({ top: 0, behavior: 'smooth' });
         };
@@ -1250,7 +1286,7 @@
         window.exportarExcel = async function () {
             const coordinadoresNames = ["Cristian Muñoz", "Andres Muñoz", "Nilton Cardona"];
             const lideresNames = ["Jhon Vega", "Kevin Villada"];
-            
+
             const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
             const specificSortOrder = [...coordinadoresNames, ...lideresNames].map(n => norm(n));
 
@@ -1365,9 +1401,13 @@
                         }
                         if (diffMins > 510) {
                             const extraMin = diffMins - 510;
-                            dVal += (Math.ceil(extraMin / 30) * 7000);
+                            const mediasHorasCumplidas = Math.floor(extraMin / 30);
+                            dVal += (mediasHorasCumplidas * 7000);
                             extraHorasColor = true;
-                            dExt = `${Math.floor(extraMin / 60)}h ${extraMin % 60}m`;
+
+                            // Mostrar solo el tiempo extra que se está pagando (múltiplos de 30 min)
+                            const extraPagadoMin = mediasHorasCumplidas * 30;
+                            dExt = `${Math.floor(extraPagadoMin / 60)}h ${extraPagadoMin % 60}m`;
                         }
                         if (dEnt > 18) {
                             dVal += ((dEnt - 18) * 10000);
@@ -1429,14 +1469,14 @@
                 const row = worksheet.getRow(6 + index);
                 const cellLabel = row.getCell(15);
                 const cellValue = row.getCell(16);
-                
+
                 cellLabel.value = data[0];
                 cellValue.value = data[1];
 
                 // Labels: Fondo azul
                 cellLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBDD7EE' } };
                 cellLabel.font = { bold: true };
-                
+
                 // Values: Fondo blanco
                 cellValue.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
                 cellValue.font = { bold: true };
@@ -1508,6 +1548,62 @@
             saveAs(new Blob([buffer]), `Base_De_Datos_Domiciliarios_${new Date().toLocaleDateString()}.xlsx`);
         };
 
+        window.exportarDashboardExcel = async function () {
+            if (historialData.length === 0) { alert("No hay datos históricos para exportar."); return; }
+
+            const workbook = new ExcelJS.Workbook();
+            const sheetSummary = workbook.addWorksheet('Resumen Diario');
+            const sheetDetail = workbook.addWorksheet('Detalle por Domiciliario');
+
+            // --- HOJA RESUMEN ---
+            sheetSummary.columns = [
+                { header: 'FECHA', key: 'fecha', width: 20 },
+                { header: 'TOTAL ENTREGAS', key: 'totalEntregas', width: 20 },
+                { header: 'TOTAL TORTAS', key: 'totalTortas', width: 20 }
+            ];
+
+            // --- HOJA DETALLE ---
+            sheetDetail.columns = [
+                { header: 'FECHA', key: 'fecha', width: 20 },
+                { header: 'DOMICILIARIO', key: 'nombre', width: 35 },
+                { header: 'ENTREGAS', key: 'entregas', width: 15 },
+                { header: 'TORTAS', key: 'tortas', width: 15 }
+            ];
+
+            // Formato Headers
+            [sheetSummary, sheetDetail].forEach(ws => {
+                const head = ws.getRow(1);
+                head.eachCell(c => {
+                    c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2596BE' } };
+                    c.alignment = { horizontal: 'center' };
+                });
+            });
+
+            // Llenar datos (de más reciente a más antiguo)
+            [...historialData].sort((a, b) => b.timestamp - a.timestamp).forEach(h => {
+                sheetSummary.addRow({
+                    fecha: h.fecha,
+                    totalEntregas: h.totalEntregas,
+                    totalTortas: h.totalTortas || 0
+                });
+
+                if (h.detalle && Array.isArray(h.detalle)) {
+                    h.detalle.forEach(d => {
+                        sheetDetail.addRow({
+                            fecha: h.fecha,
+                            nombre: d.n,
+                            entregas: d.e,
+                            tortas: d.t || 0
+                        });
+                    });
+                }
+            });
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            saveAs(new Blob([buffer]), `Historico_Rendimiento_Pez_Postre_${new Date().toLocaleDateString()}.xlsx`);
+        };
+
         window.agregar = function () {
             if (isViewOnly) return;
             let input = document.getElementById("nombreInput");
@@ -1533,15 +1629,15 @@
                 finLaboral: "--:--",
                 rutasRealizadas: 0, entregasRealizadas: 0, tortasPescado: 0, yaAlmorzo: false
             };
-            
+
             input.value = "";
             // Mandamos directo a la nube, la UI se actualizará sola cuando Firebase responda
-            set(ref(db, `domiciliarios/${nuevoId}`), nuevoDomi); 
+            set(ref(db, `domiciliarios/${nuevoId}`), nuevoDomi);
         };
 
         window.borrarTodo = async function () {
             if (isViewOnly) return;
-            if (confirm("¿Borrar todos los datos? Al hacerlo se archivará el reporte de hoy en el historial.")) { 
+            if (confirm("¿Borrar todos los datos? Al hacerlo se archivará el reporte de hoy en el historial.")) {
                 // Archivar antes de borrar
                 const reporteHoy = {
                     fecha: new Date().toLocaleDateString(),
@@ -1550,7 +1646,7 @@
                     totalTortas: domiciliarios.reduce((acc, d) => acc + (d.tortasPescado || 0), 0),
                     detalle: domiciliarios.map(d => ({ n: d.nombre, e: d.entregasRealizadas, t: d.tortasPescado }))
                 };
-                
+
                 if (reporteHoy.totalEntregas > 0) {
                     const newHistRef = ref(db, 'historial/' + reporteHoy.timestamp);
                     await set(newHistRef, reporteHoy);
@@ -1560,7 +1656,7 @@
             }
         };
 
-        window.abrirModalDashboard = function() {
+        window.abrirModalDashboard = function () {
             document.getElementById('modalDashboard').style.display = 'flex';
             renderHistorial();
             renderChart();
@@ -1569,7 +1665,7 @@
         function renderHistorial() {
             const container = document.getElementById('listaHistorial');
             let html = "";
-            [...historialData].sort((a,b) => b.timestamp - a.timestamp).forEach(h => {
+            [...historialData].sort((a, b) => b.timestamp - a.timestamp).forEach(h => {
                 html += `
                     <div class="personal-row" style="background:#f0f7ff">
                         <div class="personal-info-main">
@@ -1588,9 +1684,9 @@
         function renderChart() {
             const ctx = document.getElementById('chartRendimiento').getContext('2d');
             if (chartInstance) chartInstance.destroy();
-            
+
             // Tomar los últimos 7 reportes
-            const ultimos7 = [...historialData].sort((a,b) => a.timestamp - b.timestamp).slice(-7);
+            const ultimos7 = [...historialData].sort((a, b) => a.timestamp - b.timestamp).slice(-7);
             const labels = ultimos7.map(h => h.fecha);
             const dataE = ultimos7.map(h => h.totalEntregas);
             const dataT = ultimos7.map(h => h.totalTortas);
@@ -1638,12 +1734,16 @@
                 });
                 cerrarModal('modalRuta');
                 if (!data) return;
-                d.estado = "ruta"; d.rutasRealizadas++; d.entregasRealizadas += data.e; d.tortasPescado += data.t;
-            } else { 
-                d.estado = "activo"; 
+                d.estado = "ruta";
+                d.rutasRealizadas++;
+                d.entregasRealizadas += data.e;
+                d.tortasPescado += data.t;
+                d.turnoTimestamp = Date.now(); // Al final de la cola 'En Ruta'
+            } else {
+                d.estado = "activo";
                 d.turnoTimestamp = Date.now(); // Pasa al final de la fila al activarse
             }
-            guardar(id);
+            guardar(d);
         };
 
         window.descontarTodo = async function (id) {
@@ -1664,7 +1764,7 @@
             if (data) {
                 d.entregasRealizadas = Math.max(0, d.entregasRealizadas - data.e);
                 d.tortasPescado = Math.max(0, d.tortasPescado - data.t);
-                guardar(id);
+                guardar(d);
             }
         };
 
@@ -1686,29 +1786,30 @@
             if (data) {
                 d.entregasRealizadas += data.e;
                 d.tortasPescado += data.t;
-                guardar(id);
+                guardar(d);
             }
         };
 
         window.gestionarAlmuerzo = function (id) {
             if (isViewOnly) return;
             let d = domiciliarios.find(x => x.id === id);
-            if (d.estado !== "almorzando") { 
-                d.estado = "almorzando"; 
-                d.finAlmuerzo = Date.now() + TIEMPO_ALMUERZO; 
-            } else { 
-                d.estado = "activo"; 
-                d.finAlmuerzo = null; 
-                d.yaAlmorzo = true; 
+            if (d.estado !== "almorzando") {
+                d.estado = "almorzando";
+                d.finAlmuerzo = Date.now() + TIEMPO_ALMUERZO;
+                d.turnoTimestamp = Date.now(); // Al final de la cola 'Almuerzo'
+            } else {
+                d.estado = "activo";
+                d.finAlmuerzo = null;
+                d.yaAlmorzo = true;
                 d.turnoTimestamp = Date.now(); // Pasa al final de la fila al volver del almuerzo
             }
-            guardar(id);
+            guardar(d);
         };
 
         window.enviarWhatsApp = function (id) {
             const d = domiciliarios.find(x => x.id === id);
             if (!d) return;
-            
+
             // Intento obtener el contacto del registro activo, sino del maestro
             let contact = d.contacto;
             if (!contact) {
@@ -1717,7 +1818,7 @@
             }
 
             if (!contact) { alert("No hay número de contacto registrado para este domiciliario."); return; }
-            
+
             const cleanNum = contact.replace(/\D/g, "");
             // Si el número tiene 10 dígitos (Colombia solo celular sin 57), le agregamos el 57
             const finalNum = cleanNum.length === 10 ? '57' + cleanNum : cleanNum;
@@ -1741,7 +1842,8 @@
                 d.finLaboral = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 d.finTimestamp = Date.now();
                 d.estado = "inactivo";
-                guardar(id);
+                d.turnoTimestamp = Date.now(); // Al final de la cola 'Ocupados'
+                guardar(d);
             }
         };
 
@@ -1757,11 +1859,11 @@
             let d = domiciliarios.find(x => x.id === id);
             d.estado = d.estado === "inactivo" ? "activo" : "inactivo";
             if (d.estado === "activo") {
-                d.turnoTimestamp = Date.now(); 
-                guardar(id);
+                d.turnoTimestamp = Date.now(); // Al final de la cola 'Libres'
             } else {
-                guardar(id);
+                d.turnoTimestamp = Date.now(); // Al final de la cola 'Ocupados'
             }
+            guardar(d);
         };
 
 
@@ -1776,13 +1878,13 @@
             const ranked = [...domiciliarios]
                 .filter(d => d.entregasRealizadas > 0)
                 .sort((a, b) => b.entregasRealizadas - a.entregasRealizadas);
-            
+
             const top3Ids = ranked.slice(0, 3).map(d => d.id);
 
             // --- ORDENACIÓN POR TURNO (FILA INDIA) ---
             // Los que tienen turnoTimestamp menor (más viejo) aparecen arriba (primero en la fila)
             // Los que tienen turnoTimestamp mayor (más reciente) aparecen abajo (último en la fila)
-            const ordenados = [...domiciliarios].sort((a,b) => {
+            const ordenados = [...domiciliarios].sort((a, b) => {
                 const ta = a.turnoTimestamp || 0;
                 const tb = b.turnoTimestamp || 0;
                 return ta - tb;
@@ -1842,7 +1944,7 @@
                 }
             });
             lista.innerHTML = html;
-            
+
             document.getElementById("total").innerText = domiciliarios.length;
             document.getElementById("activos").innerText = c.activo;
             document.getElementById("ruta").innerText = c.ruta;
@@ -1861,15 +1963,15 @@
 
         setInterval(() => {
             let ch = false; let n = Date.now();
-            domiciliarios.forEach(d => { 
-                if (d.estado === "almorzando" && d.finAlmuerzo <= n) { 
-                    d.estado = "activo"; 
-                    d.finAlmuerzo = null; 
-                    d.yaAlmorzo = true; 
+            domiciliarios.forEach(d => {
+                if (d.estado === "almorzando" && d.finAlmuerzo <= n) {
+                    d.estado = "activo";
+                    d.finAlmuerzo = null;
+                    d.yaAlmorzo = true;
                     d.turnoTimestamp = Date.now(); // Al final de la cola tras almorzar
-                    guardar(d.id); 
-                    ch = true; 
-                } 
+                    guardar(d);
+                    ch = true;
+                }
             });
             if (!ch) render(); // Solo renderizamos si no hubo cambios (si hubo, el onValue lo hará)
         }, 1000);
