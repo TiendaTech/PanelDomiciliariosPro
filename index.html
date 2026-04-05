@@ -1372,8 +1372,10 @@
             let cCoord = 0, cLid = 0, cDom = 0;
 
             listaParaExportar.forEach(d => {
-                const isCoord = coordinadoresNames.some(n => norm(d.nombre).includes(norm(n)));
-                const isLid = lideresNames.some(n => norm(d.nombre).includes(norm(n)));
+                const nameNorm = norm(d.nombre);
+                const isCoord = coordinadoresNames.some(n => norm(n).includes(nameNorm) || nameNorm.includes(norm(n)));
+                const isLid = lideresNames.some(n => norm(n).includes(nameNorm) || nameNorm.includes(norm(n)));
+                const isIndrive = nameNorm.includes("indrive");
 
                 let dIng = d.inicioLaboral;
                 let dSal = d.finLaboral || '--:--';
@@ -1391,7 +1393,6 @@
                 } else {
                     cDom++;
                     if (d.inicioLaboral !== "--:--") {
-                        dVal = 143000;
                         let diffMins = 0;
                         if (d.finTimestamp && d.inicioTimestamp) {
                             diffMins = Math.floor((d.finTimestamp - d.inicioTimestamp) / 60000);
@@ -1399,19 +1400,26 @@
                             let mins = diffMins % 60;
                             dHrs = `${hrs}h ${mins}m`;
                         }
-                        if (diffMins > 510) {
-                            const extraMin = diffMins - 510;
-                            const mediasHorasCumplidas = Math.floor(extraMin / 30);
-                            dVal += (mediasHorasCumplidas * 7000);
-                            extraHorasColor = true;
 
-                            // Mostrar solo el tiempo extra que se está pagando (múltiplos de 30 min)
-                            const extraPagadoMin = mediasHorasCumplidas * 30;
-                            dExt = `${Math.floor(extraPagadoMin / 60)}h ${extraPagadoMin % 60}m`;
-                        }
-                        if (dEnt > 18) {
-                            dVal += ((dEnt - 18) * 10000);
-                            extraEntregasColor = true;
+                        if (!isIndrive) {
+                            dVal = 143000;
+                            if (diffMins > 510) {
+                                const extraMin = diffMins - 510;
+                                const mediasHorasCumplidas = Math.floor(extraMin / 30);
+                                dVal += (mediasHorasCumplidas * 7000);
+                                extraHorasColor = true;
+
+                                const extraPagadoMin = mediasHorasCumplidas * 30;
+                                dExt = `${Math.floor(extraPagadoMin / 60)}h ${extraPagadoMin % 60}m`;
+                            }
+                            if (dEnt > 18) {
+                                dVal += ((dEnt - 18) * 10000);
+                                extraEntregasColor = true;
+                            }
+                        } else {
+                            // Caso Indrive: valor 0 y sin cálculos de extras
+                            dVal = 0;
+                            dExt = "0h 0m";
                         }
                     }
                 }
@@ -1435,7 +1443,19 @@
                 row.eachCell((cell, colNumber) => {
                     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                     cell.border = { top: { style: 'thin', color: { argb: 'FF000000' } }, left: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'thin', color: { argb: 'FF000000' } }, right: { style: 'thin', color: { argb: 'FF000000' } } };
-                    if ((colNumber === 10 || colNumber === 11) && extraHorasColor) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF99' } };
+
+                    // Amarillo en columnas HORAS (10) y EXTRAS (11) SOLO si >= 9 horas (540 minutos)
+                    if ((colNumber === 10 || colNumber === 11) && d.finTimestamp && d.inicioTimestamp) {
+                        const minsX = Math.floor((d.finTimestamp - d.inicioTimestamp) / 60000);
+                        if (minsX >= 540) {
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF99' } };
+                        }
+                    }
+
+                    // Pintar de verde VALOR (13) si supera $143.000
+                    if (colNumber === 13 && dVal > 143000) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCFFCC' } };
+
+                    // Columna ENTREGAS (12)
                     if (colNumber === 12 && extraEntregasColor) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCFFCC' } };
                 });
 
@@ -1823,14 +1843,32 @@
             // Si el número tiene 10 dígitos (Colombia solo celular sin 57), le agregamos el 57
             const finalNum = cleanNum.length === 10 ? '57' + cleanNum : cleanNum;
 
+            // Calcular Ranking para incluir insignia en el mensaje
+            const ranked = [...domiciliarios]
+                .filter(dom => dom.entregasRealizadas > 0)
+                .sort((a, b) => {
+                    if (b.entregasRealizadas !== a.entregasRealizadas) {
+                        return b.entregasRealizadas - a.entregasRealizadas;
+                    }
+                    return (b.tortasPescado || 0) - (a.tortasPescado || 0);
+                });
+
+            const rankIdx = ranked.findIndex(x => x.id === d.id);
+            let insigniaMsg = "";
+            if (rankIdx === 0) insigniaMsg = "\n*Top 1 en cantidad de entregas*";
+            else if (rankIdx === 1) insigniaMsg = "\n*Top 2 en cantidad de entregas*";
+            else if (rankIdx === 2) insigniaMsg = "\n*Top 3 en cantidad de entregas*";
+
             const msg = window.encodeURIComponent(
                 `*Resumen de Ruta - Pez Postre*\n\n` +
                 `*Fecha:* ${new Date().toLocaleDateString()}\n` +
                 `*Domi:* ${d.nombre}\n` +
                 `*Ingreso:* ${d.inicioLaboral}\n` +
+                `*Cierre:* ${d.finLaboral || '--:--'}\n` +
                 `*Entregas:* ${d.entregasRealizadas}\n` +
-                `*Tortas:* ${d.tortasPescado || 0}\n\n` +
-                `¡Excelente trabajo!`
+                `*Tortas:* ${d.tortasPescado || 0}\n` +
+                insigniaMsg +
+                `\n\n¡Excelente trabajo!`
             );
             window.open(`https://wa.me/${finalNum}?text=${msg}`, '_blank');
         };
@@ -1874,10 +1912,15 @@
             let html = ""; let ahora = Date.now();
             let c = { activo: 0, ruta: 0, almorzando: 0, inactivo: 0, rG: 0, eG: 0, tG: 0 };
 
-            // Calcular Ranking (Top 3)
+            // Calcular Ranking (Top 3) - Criterio: Rutas (entregas) y desempate por Tortas
             const ranked = [...domiciliarios]
                 .filter(d => d.entregasRealizadas > 0)
-                .sort((a, b) => b.entregasRealizadas - a.entregasRealizadas);
+                .sort((a, b) => {
+                    if (b.entregasRealizadas !== a.entregasRealizadas) {
+                        return b.entregasRealizadas - a.entregasRealizadas;
+                    }
+                    return (b.tortasPescado || 0) - (a.tortasPescado || 0);
+                });
 
             const top3Ids = ranked.slice(0, 3).map(d => d.id);
 
