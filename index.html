@@ -1292,7 +1292,12 @@
 
             const listaParaExportar = [];
             personalMaestro.forEach(m => {
-                const activo = domiciliarios.find(d => norm(d.nombre) === norm(m.nombre));
+                const nm = norm(m.nombre);
+                // Buscamos todas las coincidencias en el día y tomamos la más reciente (ID más alto)
+                // Esto soluciona el problema de "tomar el primer registro" si el domi fue agregado más de una vez
+                const coincidencias = domiciliarios.filter(d => norm(d.nombre) === nm);
+                const activo = coincidencias.length > 0 ? coincidencias.sort((a, b) => b.id - a.id)[0] : null;
+
                 if (activo) {
                     listaParaExportar.push(activo);
                 } else {
@@ -1377,8 +1382,8 @@
                 const isLid = lideresNames.some(n => norm(n).includes(nameNorm) || nameNorm.includes(norm(n)));
                 const isIndrive = nameNorm.includes("indrive");
 
-                let dIng = d.inicioLaboral;
-                let dSal = d.finLaboral || '--:--';
+                let dIng = (d.inicioLaboral && d.inicioLaboral !== "--:--") ? d.inicioLaboral : (isCoord || isLid ? "08:00 AM" : "--:--");
+                let dSal = (d.finLaboral && d.finLaboral !== "--:--") ? d.finLaboral : (isCoord || isLid ? "04:30 PM" : "--:--");
                 let dHrs = "--:--";
                 let dExt = "0h 0m";
                 let dVal = 0;
@@ -1387,40 +1392,41 @@
                 let extraHorasColor = false;
                 let extraEntregasColor = false;
 
+                // Cálculo de horas trabajadas real (si existen timestamps)
+                let diffMins = 0;
+                if (d.finTimestamp && d.inicioTimestamp) {
+                    diffMins = Math.floor((d.finTimestamp - d.inicioTimestamp) / 60000);
+                    let hrs = Math.floor(diffMins / 60);
+                    let mins = diffMins % 60;
+                    dHrs = `${hrs}h ${mins}m`;
+                } else if (isCoord || isLid) {
+                    dHrs = "8h 30m";
+                }
+
                 if (isCoord || isLid) {
                     if (isCoord) cCoord++; else cLid++;
-                    dIng = "08:00 AM"; dSal = "04:30 PM"; dHrs = "8h 30m"; dVal = 143000;
+                    dVal = 143000;
                 } else {
                     cDom++;
-                    if (d.inicioLaboral !== "--:--") {
-                        let diffMins = 0;
-                        if (d.finTimestamp && d.inicioTimestamp) {
-                            diffMins = Math.floor((d.finTimestamp - d.inicioTimestamp) / 60000);
-                            let hrs = Math.floor(diffMins / 60);
-                            let mins = diffMins % 60;
-                            dHrs = `${hrs}h ${mins}m`;
-                        }
+                    if (!isIndrive) dVal = 143000;
+                }
 
-                        if (!isIndrive) {
-                            dVal = 143000;
-                            if (diffMins > 510) {
-                                const extraMin = diffMins - 510;
-                                const mediasHorasCumplidas = Math.floor(extraMin / 30);
-                                dVal += (mediasHorasCumplidas * 7000);
-                                extraHorasColor = true;
+                // Cálculo universal de extras (aplica para todos menos Indrive)
+                if (!isIndrive && d.inicioLaboral !== "--:--") {
+                    // Cálculo por tiempo laborado (> 8.5 horas = 510 min)
+                    if (diffMins > 510) {
+                        const extraMin = diffMins - 510;
+                        const mediasHorasCumplidas = Math.floor(extraMin / 30);
+                        dVal += (mediasHorasCumplidas * 7000);
+                        extraHorasColor = true;
 
-                                const extraPagadoMin = mediasHorasCumplidas * 30;
-                                dExt = `${Math.floor(extraPagadoMin / 60)}h ${extraPagadoMin % 60}m`;
-                            }
-                            if (dEnt > 18) {
-                                dVal += ((dEnt - 18) * 10000);
-                                extraEntregasColor = true;
-                            }
-                        } else {
-                            // Caso Indrive: valor 0 y sin cálculos de extras
-                            dVal = 0;
-                            dExt = "0h 0m";
-                        }
+                        const extraPagadoMin = mediasHorasCumplidas * 30;
+                        dExt = `${Math.floor(extraPagadoMin / 60)}h ${extraPagadoMin % 60}m`;
+                    }
+                    // Cálculo adicional por volumen de entregas (solo domiciliarios estándar)
+                    if (!isCoord && !isLid && dEnt > 18) {
+                        dVal += ((dEnt - 18) * 10000);
+                        extraEntregasColor = true;
                     }
                 }
 
