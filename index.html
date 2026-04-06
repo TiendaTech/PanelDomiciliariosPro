@@ -878,7 +878,7 @@
 
         <div class="header-grid">
             <input type="text" id="nombreInput" placeholder="Nombre domiciliario..." list="personal-list"
-                oninput="actualizarDatalist(this.value)">
+                oninput="actualizarDatalist(this.value)" onkeydown="if(event.key==='Enter') agregar()">
             <button class="btn-header btn-add" id="btn-agregar" onclick="agregar()"><i class="fas fa-plus"></i></button>
             <div class="mini-stat bg-entregas"><label>Rutas</label><b id="entregas-globales">0</b></div>
             <div class="mini-stat bg-tortas"><label>Tortas</label><b id="tortas-globales">0</b></div>
@@ -1091,6 +1091,19 @@
         </div>
     </div>
 
+    <!-- MODAL DE CONFIRMACIÓN GENÉRICO -->
+    <div class="modal-overlay" id="modalConfirmar" style="z-index: 3000;">
+        <div class="modal-content" style="max-width: 350px;">
+            <div id="confirmIcon" style="font-size: 3rem; margin-bottom: 15px;"></div>
+            <h3 id="confirmTitle" style="margin-bottom: 10px;">¿Estás seguro?</h3>
+            <p id="confirmText" style="font-size: 0.9rem; color: #666; margin-bottom: 20px;"></p>
+            <div class="modal-btns">
+                <button class="btn-modal" id="btnConfirmarNo" style="background: #eee; color: #333;">Cancelar</button>
+                <button class="btn-modal" id="btnConfirmarSi" style="background: var(--primary); color: white;"></button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
@@ -1102,10 +1115,10 @@
 
         // Aplicar restricciones según el rol
         if (isSupervisor) {
-            document.getElementById('nombreInput').disabled = true;
-            document.getElementById('nombreInput').placeholder = "Modo Supervisión Activo";
-            document.getElementById('btn-agregar').style.display = 'none';
-            document.getElementById('titulo-panel').innerHTML = "Panel Domiciliarios <span style='font-size:0.6rem; color:var(--danger)'></span>";
+            document.getElementById('nombreInput').disabled = false;
+            document.getElementById('nombreInput').placeholder = "Nombre domiciliario...";
+            document.getElementById('btn-agregar').style.display = 'flex';
+            document.getElementById('titulo-panel').innerHTML = "Panel Domiciliarios <span style='font-size:0.7rem; color:var(--danger); background:#fff0f3; padding:2px 8px; border-radius:10px; margin-left:10px; border:1px solid #ffdce5'>ADMIN</span>";
 
             if (document.getElementById('btn-acceso-supervisor')) document.getElementById('btn-acceso-supervisor').style.display = 'none';
             if (document.getElementById('btn-salir-supervisor')) document.getElementById('btn-salir-supervisor').style.display = 'flex';
@@ -1153,6 +1166,35 @@
         let editIdMaestro = null;
         let filtroEstado = 'todos';
         const TIEMPO_ALMUERZO = 35 * 60 * 1000;
+
+        // --- FUNCIÓN DE CONFIRMACIÓN PERSONALIZADA ---
+        window.confirmarAccion = function (obj) {
+            return new Promise((resolve) => {
+                const modal = document.getElementById('modalConfirmar');
+                const title = document.getElementById('confirmTitle');
+                const text = document.getElementById('confirmText');
+                const icon = document.getElementById('confirmIcon');
+                const btnSi = document.getElementById('btnConfirmarSi');
+                const btnNo = document.getElementById('btnConfirmarNo');
+
+                title.innerText = obj.titulo || "¿Estás seguro?";
+                text.innerText = obj.texto || "";
+                btnSi.innerText = obj.botonSi || "Confirmar";
+                btnSi.style.backgroundColor = obj.color || 'var(--primary)';
+                btnSi.style.color = 'white';
+                icon.innerHTML = obj.icono || '<i class="fas fa-question-circle" style="color:var(--primary)"></i>';
+
+                modal.style.display = 'flex';
+
+                const handleResponse = (val) => {
+                    modal.style.display = 'none';
+                    resolve(val);
+                };
+
+                btnSi.onclick = () => handleResponse(true);
+                btnNo.onclick = () => handleResponse(false);
+            });
+        };
 
         // --- LÓGICA DE CÁLCULO ESTÁNDAR ---
         function calcularLiquidacion(d) {
@@ -1406,22 +1448,48 @@
         };
 
         window.eliminarPersonalMaestro = async function (id) {
-            if (confirm("¿Eliminar de la lista maestra?")) {
+            const domi = personalMaestro.find(x => x.id === id);
+            const res = await confirmarAccion({
+                titulo: "Borrar de Base de Datos",
+                texto: `¿Eliminar a ${domi.nombre} permanentemente de la lista maestra?`,
+                botonSi: "Eliminar",
+                color: "var(--danger)",
+                icono: '<i class="fas fa-user-minus" style="color:var(--danger)"></i>'
+            });
+            if (res) {
                 set(ref(db, `personal_maestro/${id}`), null);
                 renderListaMaestra();
             }
         };
 
+        // Escuchar Enter en todos los inputs del maestro
+        document.querySelectorAll('#modalPersonal input').forEach(input => {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    if (input.id === 'inputNombreMaestro' || input.id === 'inputSalarioMaestro') {
+                        agregarPersonalMaestro();
+                    }
+                }
+            });
+        });
+
         window.borrarTodaLaBaseMaestra = async function () {
             if (!isSupervisor) return;
-            const pass = prompt("Para confirmar el borrado de TODA la base maestra de personal, escribe la palabra: ELIMINAR");
-            if (pass === "ELIMINAR") {
-                if (confirm("¿Estás absolutamente seguro? Esta acción no se puede deshacer.")) {
+            const res = await confirmarAccion({
+                titulo: "Borrado Crítico",
+                texto: "¿Deseas vaciar toda la base de datos de domiciliarios? Esta acción no se puede deshacer.",
+                botonSi: "Continuar",
+                color: "#333",
+                icono: '<i class="fas fa-exclamation-triangle" style="color:var(--danger)"></i>'
+            });
+            if (res) {
+                const pass = prompt("Para confirmar el borrado de TODA la base maestra de personal, escribe la palabra: ELIMINAR");
+                if (pass === "ELIMINAR") {
                     set(maestroRef, null); // Borrado total en la nube
                     renderListaMaestra();
+                } else if (pass !== null) {
+                    alert("Confirmación incorrecta.");
                 }
-            } else if (pass !== null) {
-                alert("Confirmación incorrecta.");
             }
         };
 
@@ -1835,26 +1903,26 @@
             saveAs(new Blob([buffer]), `Historico_Rendimiento_Pez_Postre_${new Date().toLocaleDateString()}.xlsx`);
         };
 
-        window.agregar = function () {
+        window.agregar = async function () {
             let input = document.getElementById("nombreInput");
             const nombreTxt = input.value.trim();
             if (!nombreTxt) return;
 
             // Buscar datos en el maestro
-            const maestro = personalMaestro.find(p => p.nombre.toLowerCase() === nombreTxt.toLowerCase());
+            const maestro = personalMaestro.find(p => (p.nombre || "").toLowerCase() === nombreTxt.toLowerCase());
 
             const nuevoId = Date.now();
             const nuevoDomi = {
                 id: nuevoId,
                 nombre: nombreTxt,
-                cedula: maestro ? maestro.cedula : "",
-                contacto: maestro ? maestro.contacto : "",
-                correo: maestro ? maestro.correo : "",
-                cuenta: maestro ? maestro.cuenta : "",
-                placa: maestro ? maestro.placa : "",
-                salario: maestro ? maestro.salario : "",
-                eps: maestro ? maestro.eps : "",
-                arl: maestro ? maestro.arl : "",
+                cedula: maestro && maestro.cedula ? maestro.cedula : "",
+                contacto: maestro && maestro.contacto ? maestro.contacto : "",
+                correo: maestro && maestro.correo ? maestro.correo : "",
+                cuenta: maestro && maestro.cuenta ? maestro.cuenta : "",
+                placa: maestro && maestro.placa ? maestro.placa : "",
+                salario: maestro && maestro.salario ? maestro.salario : "",
+                eps: maestro && maestro.eps ? maestro.eps : "",
+                arl: maestro && maestro.arl ? maestro.arl : "",
                 estado: "activo",
                 inicioLaboral: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
                 inicioTimestamp: Date.now(),
@@ -1863,14 +1931,27 @@
                 rutasRealizadas: 0, entregasRealizadas: 0, tortasPescado: 0, yaAlmorzo: false
             };
 
-            input.value = "";
-            // Mandamos directo a la nube, la UI se actualizará sola cuando Firebase responda
-            set(ref(db, `domiciliarios/${nuevoId}`), nuevoDomi);
+            try {
+                // Mandamos directo a la nube, la UI se actualizará sola cuando Firebase responda
+                await set(ref(db, `domiciliarios/${nuevoId}`), nuevoDomi);
+                input.value = "";
+                input.focus();
+            } catch (error) {
+                console.error("Error al agregar:", error);
+                alert("⚠️ Error al guardar en la nube: " + error.message);
+            }
         };
 
         window.borrarTodo = async function () {
             if (!isSupervisor) return;
-            if (confirm("¿Borrar todos los datos? Al hacerlo se archivará el reporte de hoy en el historial.")) {
+            const res = await confirmarAccion({
+                titulo: "Cierre de Jornada",
+                texto: "¿Borrar todos los datos actuales? Se archivará el reporte de hoy en el historial.",
+                botonSi: "Cerrar y Archivar",
+                color: "var(--danger)",
+                icono: '<i class="fas fa-archive" style="color:var(--danger)"></i>'
+            });
+            if (res) {
                 // Archivar antes de borrar
                 const reporteHoy = {
                     fecha: new Date().toLocaleDateString(),
@@ -2109,10 +2190,17 @@
             window.open(`https://wa.me/${finalNum}?text=${msg}`, '_blank');
         };
 
-        window.finalizarTurno = function (id) {
+        window.finalizarTurno = async function (id) {
             if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id === id);
-            if (confirm(`¿Finalizar turno de ${d.nombre}?`)) {
+            const res = await confirmarAccion({
+                titulo: "Finalizar Turno",
+                texto: `¿Cerrar turno para ${d.nombre}? Ya no aparecerá en las búsquedas de hoy.`,
+                botonSi: "Finalizar",
+                color: "#2d3436",
+                icono: '<i class="fas fa-sign-out-alt" style="color:#2d3436"></i>'
+            });
+            if (res) {
                 d.finLaboral = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 d.finTimestamp = Date.now();
                 d.estado = "inactivo";
@@ -2122,8 +2210,15 @@
         };
 
         window.eliminar = async function (id) {
-            if (!isSupervisor) return;
-            if (confirm("¿Eliminar domiciliario?")) {
+            let d = domiciliarios.find(x => x.id === id);
+            const res = await confirmarAccion({
+                titulo: "Quitar de Lista",
+                texto: `¿Eliminar a ${d.nombre} definitivamente de la lista de hoy?`,
+                botonSi: "Eliminar",
+                color: "var(--danger)",
+                icono: '<i class="fas fa-trash-alt" style="color:var(--danger)"></i>'
+            });
+            if (res) {
                 set(ref(db, `domiciliarios/${id}`), null);
             }
         };
@@ -2170,8 +2265,11 @@
             });
 
             ordenados.forEach(d => {
-                c[d.estado]++; c.eG += d.entregasRealizadas; c.tG += (d.tortasPescado || 0);
-                if (d.nombre.toLowerCase().includes(busq) && (filtroEstado === 'todos' || d.estado === filtroEstado)) {
+                if (d.estado && c[d.estado] !== undefined) c[d.estado]++;
+                c.eG += (d.entregasRealizadas || 0);
+                c.tG += (d.tortasPescado || 0);
+
+                if ((d.nombre || "").toLowerCase().includes(busq) && (filtroEstado === 'todos' || d.estado === filtroEstado)) {
                     let timer = "";
                     if (d.estado === "almorzando" && d.finAlmuerzo) {
                         let diff = Math.max(0, Math.floor((d.finAlmuerzo - ahora) / 1000));
