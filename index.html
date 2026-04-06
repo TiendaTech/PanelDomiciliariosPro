@@ -947,6 +947,18 @@
                     <label>Número de Cuenta</label>
                     <input type="text" id="inputCuentaMaestro" placeholder="Banco / Ahorros / N°">
                 </div>
+                <div class="input-group">
+                    <label>EPS</label>
+                    <input type="text" id="inputEPSMaestro" placeholder="Nombre EPS">
+                </div>
+                <div class="input-group">
+                    <label>ARL</label>
+                    <input type="text" id="inputARLMaestro" placeholder="Nombre ARL">
+                </div>
+                <div class="input-group" style="grid-column: span 2;">
+                    <label>Salario Base (Diario)</label>
+                    <input type="text" id="inputSalarioMaestro" placeholder="$ 143.000">
+                </div>
             </div>
 
             <button class="btn-header btn-add" onclick="agregarPersonalMaestro()"
@@ -1149,7 +1161,10 @@
                 contacto: document.getElementById('inputContactoMaestro'),
                 correo: document.getElementById('inputCorreoMaestro'),
                 cuenta: document.getElementById('inputCuentaMaestro'),
-                placa: document.getElementById('inputPlacaMaestro')
+                placa: document.getElementById('inputPlacaMaestro'),
+                salario: document.getElementById('inputSalarioMaestro'),
+                eps: document.getElementById('inputEPSMaestro'),
+                arl: document.getElementById('inputARLMaestro')
             };
 
             const btnSave = document.querySelector('button[onclick="agregarPersonalMaestro()"]');
@@ -1167,7 +1182,10 @@
                         contacto: fields.contacto.value.trim(),
                         correo: fields.correo.value.trim(),
                         cuenta: fields.cuenta.value.trim(),
-                        placa: fields.placa.value.trim()
+                        placa: fields.placa.value.trim(),
+                        salario: fields.salario.value.trim(),
+                        eps: fields.eps.value.trim(),
+                        arl: fields.arl.value.trim()
                     };
                 }
                 btnSave.innerHTML = '<i class="fas fa-plus"></i> Guardar en Base de Datos';
@@ -1185,7 +1203,10 @@
                     contacto: fields.contacto.value.trim(),
                     correo: fields.correo.value.trim(),
                     cuenta: fields.cuenta.value.trim(),
-                    placa: fields.placa.value.trim()
+                    placa: fields.placa.value.trim(),
+                    salario: fields.salario.value.trim(),
+                    eps: fields.eps.value.trim(),
+                    arl: fields.arl.value.trim()
                 });
             }
 
@@ -1208,6 +1229,9 @@
             document.getElementById('inputCorreoMaestro').value = p.correo || "";
             document.getElementById('inputCuentaMaestro').value = p.cuenta || "";
             document.getElementById('inputPlacaMaestro').value = p.placa || "";
+            document.getElementById('inputSalarioMaestro').value = p.salario || "";
+            document.getElementById('inputEPSMaestro').value = p.eps || "";
+            document.getElementById('inputARLMaestro').value = p.arl || "";
 
             editIdMaestro = id;
             const btnSave = document.querySelector('button[onclick="agregarPersonalMaestro()"]');
@@ -1257,6 +1281,9 @@
                             <div class="detail-item"><i class="fas fa-phone"></i> ${p.contacto || '---'}</div>
                             <div class="detail-item"><i class="fas fa-envelope"></i> ${p.correo || '---'}</div>
                             <div class="detail-item"><i class="fas fa-motorcycle"></i> ${p.placa || '---'}</div>
+                            <div class="detail-item"><i class="fas fa-heartbeat"></i> EPS: ${p.eps || '---'}</div>
+                            <div class="detail-item"><i class="fas fa-shield-alt"></i> ARL: ${p.arl || '---'}</div>
+                            <div class="detail-item"><i class="fas fa-money-bill-wave"></i> Salario: ${p.salario || '---'}</div>
                             <div class="detail-item" style="grid-column: span 2;"><i class="fas fa-credit-card"></i> ${p.cuenta || '---'}</div>
                         </div>
                     </div>
@@ -1274,7 +1301,7 @@
                     btnSave.style.background = 'var(--primary)';
                 }
                 // Limpiar campos
-                const ids = ['inputNombreMaestro', 'inputCedulaMaestro', 'inputContactoMaestro', 'inputCorreoMaestro', 'inputCuentaMaestro', 'inputPlacaMaestro'];
+                const ids = ['inputNombreMaestro', 'inputCedulaMaestro', 'inputContactoMaestro', 'inputCorreoMaestro', 'inputCuentaMaestro', 'inputPlacaMaestro', 'inputSalarioMaestro', 'inputEPSMaestro', 'inputARLMaestro'];
                 ids.forEach(i => {
                     const el = document.getElementById(i);
                     if (el) el.value = "";
@@ -1378,8 +1405,8 @@
 
             listaParaExportar.forEach(d => {
                 const nameNorm = norm(d.nombre);
-                const isCoord = coordinadoresNames.some(n => norm(n).includes(nameNorm) || nameNorm.includes(norm(n)));
-                const isLid = lideresNames.some(n => norm(n).includes(nameNorm) || nameNorm.includes(norm(n)));
+                const isCoord = coordinadoresNames.some(n => norm(n) === nameNorm);
+                const isLid = lideresNames.some(n => norm(n) === nameNorm);
                 const isIndrive = nameNorm.includes("indrive");
 
                 let dIng = (d.inicioLaboral && d.inicioLaboral !== "--:--") ? d.inicioLaboral : (isCoord || isLid ? "08:00 AM" : "--:--");
@@ -1407,8 +1434,10 @@
                     if (isCoord) cCoord++; else cLid++;
                     dVal = 143000;
                 } else {
-                    cDom++;
-                    if (!isIndrive) dVal = 143000;
+                    if (d.inicioLaboral !== "--:--") {
+                        cDom++;
+                        if (!isIndrive) dVal = 143000;
+                    }
                 }
 
                 // Cálculo universal de extras (aplica para todos menos Indrive)
@@ -1532,7 +1561,10 @@
                 { header: 'CONTACTO', key: 'contacto', width: 15 },
                 { header: 'CORREO', key: 'correo', width: 25 },
                 { header: 'PLACA MOTO', key: 'placa', width: 12 },
-                { header: 'NÚMERO DE CUENTA', key: 'cuenta', width: 35 }
+                { header: 'NÚMERO DE CUENTA', key: 'cuenta', width: 35 },
+                { header: 'SALARIO', key: 'salario', width: 15 },
+                { header: 'EPS', key: 'eps', width: 20 },
+                { header: 'ARL', key: 'arl', width: 20 }
             ];
 
             // --- ESPACIO PARA LOGO ---
@@ -1566,7 +1598,10 @@
                     contacto: p.contacto || '--',
                     correo: p.correo || '--',
                     placa: p.placa || '--',
-                    cuenta: p.cuenta || '--'
+                    cuenta: p.cuenta || '--',
+                    salario: p.salario || '--',
+                    eps: p.eps || '--',
+                    arl: p.arl || '--'
                 });
             });
 
@@ -1648,6 +1683,9 @@
                 correo: maestro ? maestro.correo : "",
                 cuenta: maestro ? maestro.cuenta : "",
                 placa: maestro ? maestro.placa : "",
+                salario: maestro ? maestro.salario : "",
+                eps: maestro ? maestro.eps : "",
+                arl: maestro ? maestro.arl : "",
                 estado: "activo",
                 inicioLaboral: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
                 inicioTimestamp: Date.now(),
