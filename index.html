@@ -1430,13 +1430,20 @@
                     dHrs = "8h 30m";
                 }
 
+                let currentSal = d.salario;
+                if (!currentSal || currentSal.trim() === "") {
+                    const m = personalMaestro.find(p => norm(p.nombre) === nameNorm);
+                    if (m) currentSal = m.salario;
+                }
+                let dValBase = (currentSal && currentSal.trim() !== "") ? parseInt(currentSal.replace(/\D/g, "")) : 0;
+
                 if (isCoord || isLid) {
                     if (isCoord) cCoord++; else cLid++;
-                    dVal = 143000;
+                    dVal = dValBase;
                 } else {
                     if (d.inicioLaboral !== "--:--") {
                         cDom++;
-                        if (!isIndrive) dVal = 143000;
+                        if (!isIndrive) dVal = dValBase;
                     }
                 }
 
@@ -1903,6 +1910,55 @@
             else if (rankIdx === 1) insigniaMsg = "\n*Top 2 en cantidad de entregas*";
             else if (rankIdx === 2) insigniaMsg = "\n*Top 3 en cantidad de entregas*";
 
+            const coordinadoresNames = ["Cristian Muñoz", "Andres Muñoz", "Nilton Cardona"];
+            const lideresNames = ["Jhon Vega", "Kevin Villada"];
+            const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            const nameNorm = norm(d.nombre);
+
+            const isCoord = coordinadoresNames.some(n => norm(n) === nameNorm);
+            const isLid = lideresNames.some(n => norm(n) === nameNorm);
+            const isIndrive = nameNorm.includes("indrive");
+
+            let currentSal = d.salario;
+            if (!currentSal || currentSal.trim() === "") {
+                const m = personalMaestro.find(p => norm(p.nombre) === nameNorm);
+                if (m) currentSal = m.salario;
+            }
+            let dValSet = (currentSal && currentSal.trim() !== "") ? parseInt(currentSal.replace(/\D/g, "")) : 0;
+            let dVal = 0;
+            let dEnt = d.entregasRealizadas || 0;
+            let dExtVal = 0;
+            let dVolVal = 0;
+
+            if (isCoord || isLid) {
+                dVal = dValSet;
+            } else {
+                if (!isIndrive) dVal = dValSet;
+            }
+
+            // Cálculo de extras (Tiempo)
+            if (!isIndrive && d.finTimestamp && d.inicioTimestamp) {
+                const diffMins = Math.floor((d.finTimestamp - d.inicioTimestamp) / 60000);
+                if (diffMins > 510) {
+                    const extraMin = diffMins - 510;
+                    const mediasHorasCumplidas = Math.floor(extraMin / 30);
+                    dExtVal = mediasHorasCumplidas * 7000;
+                }
+            }
+
+            // Cálculo adicional por volumen de entregas (solo domiciliarios estándar)
+            if (!isCoord && !isLid && dEnt > 18) {
+                dVolVal = (dEnt - 18) * 10000;
+            }
+
+            const totalDia = dVal + dExtVal + dVolVal;
+            const formatM = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
+
+            let desgloseMsg = totalDia > 0 ? `*Sueldo del día:* ${formatM(totalDia)}` : "";
+            if (totalDia > 0 && (dExtVal > 0 || dVolVal > 0)) {
+                desgloseMsg += `\n_( ${dVal > 0 ? 'Base: ' + formatM(dVal) : ''}${dExtVal > 0 ? (dVal > 0 ? ' + ' : '') + 'Extras: ' + formatM(dExtVal) : ''}${dVolVal > 0 ? (dVal > 0 || dExtVal > 0 ? ' + ' : '') + 'Bono: ' + formatM(dVolVal) : ''} )_`;
+            }
+
             const msg = window.encodeURIComponent(
                 `*Resumen de Ruta - Pez Postre*\n\n` +
                 `*Fecha:* ${new Date().toLocaleDateString()}\n` +
@@ -1911,6 +1967,7 @@
                 `*Cierre:* ${d.finLaboral || '--:--'}\n` +
                 `*Entregas:* ${d.entregasRealizadas}\n` +
                 `*Tortas:* ${d.tortasPescado || 0}\n` +
+                desgloseMsg + `\n` +
                 insigniaMsg +
                 `\n\n¡Excelente trabajo!`
             );
