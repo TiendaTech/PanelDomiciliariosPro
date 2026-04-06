@@ -816,6 +816,9 @@
             <button class="btn-dashboard" onclick="abrirModalDashboard()" title="Reportes y Gráficas">
                 <i class="fas fa-chart-line"></i>
             </button>
+            <button class="btn-dashboard" style="background: #6c5ce7; margin-left: 5px;" onclick="abrirModalSemanales()" title="Informes Semanales">
+                <i class="fas fa-calendar-week"></i>
+            </button>
             <h1 id="titulo-panel">Panel Domiciliarios</h1>
             <div class="version-badge">V 5.1</div>
             <div id="connection-status" class="status-badge" title="Estado de la conexión">
@@ -1009,6 +1012,34 @@
         </div>
     </div>
 
+    <div class="modal-overlay" id="modalSemanales" onclick="if(event.target === this) cerrarModal(this.id)">
+        <div class="modal-content" style="max-width: 650px;">
+            <div style="color: #6c5ce7; font-size: 1.5rem; margin-bottom: 5px;"><i class="fas fa-file-invoice-dollar"></i></div>
+            <h3>Liquidación Semanal</h3>
+            <p style="font-size: 0.8rem; color: #8d99ae; margin-bottom: 15px;">Selecciona un domiciliario para ver su resumen de la semana y enviarlo por WhatsApp.</p>
+            
+            <div class="personal-list-container" id="listaSemanales" style="max-height: 400px; text-align: left;">
+                <!-- Se cargará dinámicamente -->
+            </div>
+
+            <div class="modal-btns">
+                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalSemanales')" style="width: 100%; background: #eee;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalDetalleSemanal" onclick="if(event.target === this) cerrarModal(this.id)">
+        <div class="modal-content" style="max-width: 500px; text-align: left;">
+            <div id="contenidoDetalleSemanal"></div>
+            <div class="modal-btns">
+                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalDetalleSemanal')" style="background: #eee;">Volver</button>
+                <button class="btn-modal" id="btnWhatsAppSemanal" style="background: #25D366; color: white;">
+                    <i class="fab fa-whatsapp"></i> Enviar Informe
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
@@ -1049,6 +1080,66 @@
         let editIdMaestro = null;
         let filtroEstado = 'todos';
         const TIEMPO_ALMUERZO = 35 * 60 * 1000;
+
+        // --- LÓGICA DE CÁLCULO ESTÁNDAR ---
+        function calcularLiquidacion(d) {
+            const coordinadoresNames = ["Cristian Muñoz", "Andres Muñoz", "Nilton Cardona"];
+            const lideresNames = ["Jhon Vega", "Kevin Villada"];
+            const normalize = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            const nameNorm = normalize(d.nombre);
+
+            const isCoord = coordinadoresNames.some(n => normalize(n) === nameNorm);
+            const isLid = lideresNames.some(n => normalize(n) === nameNorm);
+            const isIndrive = nameNorm.includes("indrive");
+
+            // Salario Base
+            let currentSal = d.salario;
+            if (!currentSal || currentSal.trim() === "") {
+                const m = personalMaestro.find(p => normalize(p.nombre) === nameNorm);
+                if (m) currentSal = m.salario;
+            }
+            let baseDaily = (currentSal && currentSal.trim() !== "") ? parseInt(currentSal.replace(/\D/g, "")) : 0;
+            
+            let valBase = 0;
+            if (isCoord || isLid) {
+                valBase = baseDaily;
+            } else if (!isIndrive && d.inicioLaboral && d.inicioLaboral !== "--:--") {
+                valBase = baseDaily;
+            }
+
+            // Extras por tiempo
+            let valExtra = 0;
+            let minsExtra = 0;
+            let totalMins = 0;
+            if (!isIndrive && d.finTimestamp && d.inicioTimestamp) {
+                totalMins = Math.floor((d.finTimestamp - d.inicioTimestamp) / 60000);
+                if (totalMins > 510) {
+                    const extraMin = totalMins - 510;
+                    const halfHours = Math.floor(extraMin / 30);
+                    valExtra = halfHours * 7000;
+                    minsExtra = halfHours * 30;
+                }
+            }
+
+            // Bono por Entregas
+            let valBono = 0;
+            const ent = d.entregasRealizadas || 0;
+            if (!isCoord && !isLid && ent > 18) {
+                valBono = (ent - 18) * 10000;
+            }
+
+            return {
+                base: valBase,
+                extras: valExtra,
+                bono: valBono,
+                total: valBase + valExtra + valBono,
+                minsTrabajados: totalMins,
+                minsExtra: minsExtra,
+                entregas: ent,
+                tortas: d.tortasPescado || 0,
+                isCoord, isLid, isIndrive
+            };
+        }
 
         // Monitoreo de conexión
         const connectedRef = ref(db, ".info/connected");
@@ -1715,7 +1806,22 @@
                     timestamp: Date.now(),
                     totalEntregas: domiciliarios.reduce((acc, d) => acc + (d.entregasRealizadas || 0), 0),
                     totalTortas: domiciliarios.reduce((acc, d) => acc + (d.tortasPescado || 0), 0),
-                    detalle: domiciliarios.map(d => ({ n: d.nombre, e: d.entregasRealizadas, t: d.tortasPescado }))
+                    detalle: domiciliarios.map(d => {
+                        const liq = calcularLiquidacion(d);
+                        return { 
+                            n: d.nombre, 
+                            e: d.entregasRealizadas, 
+                            t: d.tortasPescado,
+                            b: liq.base,
+                            ex: liq.extras,
+                            bo: liq.bono,
+                            tot: liq.total,
+                            h: liq.minsTrabajados,
+                            hx: liq.minsExtra,
+                            ing: d.inicioLaboral,
+                            fin: d.finLaboral
+                        };
+                    })
                 };
 
                 if (reporteHoy.totalEntregas > 0) {
@@ -1891,7 +1997,6 @@
             if (!contact) { alert("No hay número de contacto registrado para este domiciliario."); return; }
 
             const cleanNum = contact.replace(/\D/g, "");
-            // Si el número tiene 10 dígitos (Colombia solo celular sin 57), le agregamos el 57
             const finalNum = cleanNum.length === 10 ? '57' + cleanNum : cleanNum;
 
             // Calcular Ranking para incluir insignia en el mensaje
@@ -1910,53 +2015,12 @@
             else if (rankIdx === 1) insigniaMsg = "\n*Top 2 en cantidad de entregas*";
             else if (rankIdx === 2) insigniaMsg = "\n*Top 3 en cantidad de entregas*";
 
-            const coordinadoresNames = ["Cristian Muñoz", "Andres Muñoz", "Nilton Cardona"];
-            const lideresNames = ["Jhon Vega", "Kevin Villada"];
-            const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-            const nameNorm = norm(d.nombre);
-
-            const isCoord = coordinadoresNames.some(n => norm(n) === nameNorm);
-            const isLid = lideresNames.some(n => norm(n) === nameNorm);
-            const isIndrive = nameNorm.includes("indrive");
-
-            let currentSal = d.salario;
-            if (!currentSal || currentSal.trim() === "") {
-                const m = personalMaestro.find(p => norm(p.nombre) === nameNorm);
-                if (m) currentSal = m.salario;
-            }
-            let dValSet = (currentSal && currentSal.trim() !== "") ? parseInt(currentSal.replace(/\D/g, "")) : 0;
-            let dVal = 0;
-            let dEnt = d.entregasRealizadas || 0;
-            let dExtVal = 0;
-            let dVolVal = 0;
-
-            if (isCoord || isLid) {
-                dVal = dValSet;
-            } else {
-                if (!isIndrive) dVal = dValSet;
-            }
-
-            // Cálculo de extras (Tiempo)
-            if (!isIndrive && d.finTimestamp && d.inicioTimestamp) {
-                const diffMins = Math.floor((d.finTimestamp - d.inicioTimestamp) / 60000);
-                if (diffMins > 510) {
-                    const extraMin = diffMins - 510;
-                    const mediasHorasCumplidas = Math.floor(extraMin / 30);
-                    dExtVal = mediasHorasCumplidas * 7000;
-                }
-            }
-
-            // Cálculo adicional por volumen de entregas (solo domiciliarios estándar)
-            if (!isCoord && !isLid && dEnt > 18) {
-                dVolVal = (dEnt - 18) * 10000;
-            }
-
-            const totalDia = dVal + dExtVal + dVolVal;
+            const liq = calcularLiquidacion(d);
             const formatM = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
 
-            let desgloseMsg = totalDia > 0 ? `*Sueldo del día:* ${formatM(totalDia)}` : "";
-            if (totalDia > 0 && (dExtVal > 0 || dVolVal > 0)) {
-                desgloseMsg += `\n_( ${dVal > 0 ? 'Base: ' + formatM(dVal) : ''}${dExtVal > 0 ? (dVal > 0 ? ' + ' : '') + 'Extras: ' + formatM(dExtVal) : ''}${dVolVal > 0 ? (dVal > 0 || dExtVal > 0 ? ' + ' : '') + 'Bono: ' + formatM(dVolVal) : ''} )_`;
+            let desgloseMsg = liq.total > 0 ? `*Sueldo del día:* ${formatM(liq.total)}` : "";
+            if (liq.total > 0 && (liq.extras > 0 || liq.bono > 0)) {
+                desgloseMsg += `\n_( ${liq.base > 0 ? 'Base: ' + formatM(liq.base) : ''}${liq.extras > 0 ? (liq.base > 0 ? ' + ' : '') + 'Extras: ' + formatM(liq.extras) : ''}${liq.bono > 0 ? (liq.base > 0 || liq.extras > 0 ? ' + ' : '') + 'Bono: ' + formatM(liq.bono) : ''} )_`;
             }
 
             const msg = window.encodeURIComponent(
@@ -2119,6 +2183,183 @@
             });
             if (!ch) render(); // Solo renderizamos si no hubo cambios (si hubo, el onValue lo hará)
         }, 1000);
+
+        // --- LÓGICA DE REPORTES SEMANALES (DOMINGO A SÁBADO) ---
+        function obtenerRangoSemanal() {
+            const hoy = new Date();
+            const diaSemana = hoy.getDay(); // 0: Dom, 1: Lun... 6: Sab
+            
+            // Si hoy es domingo, queremos reportar la semana que terminó ayer sábado.
+            // Si es otro día, reportamos la última semana de domingo a sábado completada.
+            const diasAlSabado = (diaSemana === 0) ? 1 : diaSemana + 1;
+            
+            const fin = new Date(hoy);
+            fin.setDate(hoy.getDate() - diasAlSabado);
+            fin.setHours(23, 59, 59, 999);
+            
+            const inicio = new Date(fin);
+            inicio.setDate(fin.getDate() - 6);
+            inicio.setHours(0, 0, 0, 0);
+            
+            return { inicio, fin };
+        }
+
+        window.abrirModalSemanales = function () {
+            document.getElementById('modalSemanales').style.display = 'flex';
+            renderReportesSemanales();
+        };
+
+        function renderReportesSemanales() {
+            const container = document.getElementById('listaSemanales');
+            if (historialData.length === 0) {
+                container.innerHTML = '<p>No hay datos históricos para generar reportes.</p>';
+                return;
+            }
+
+            const rango = obtenerRangoSemanal();
+            const fI = rango.inicio.getTime();
+            const fF = rango.fin.getTime();
+
+            // Mostrar el rango en el modal
+            const rangeText = `Semana del ${rango.inicio.toLocaleDateString()} al ${rango.fin.toLocaleDateString()}`;
+            const subTitle = document.querySelector('#modalSemanales p');
+            if (subTitle) subTitle.innerText = rangeText;
+
+            const nombresSet = new Set();
+            historialData.forEach(h => {
+                // El timestamp del historial es del día del reporte.
+                // Verificamos si cae dentro del rango de la semana domingo-sábado.
+                if (h.timestamp >= fI && h.timestamp <= fF) {
+                    h.detalle.forEach(d => nombresSet.add(d.n));
+                }
+            });
+
+            const nombres = Array.from(nombresSet).sort();
+            let html = "";
+            nombres.forEach(nombre => {
+                html += `
+                    <div class="personal-row" style="cursor:pointer" onclick="verDetalleSemanal('${nombre}')">
+                        <div class="personal-info-main">
+                            <span><i class="fas fa-user-circle"></i> ${nombre}</span>
+                            <i class="fas fa-chevron-right" style="color:#6c5ce7"></i>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html || `<p style="text-align:center; padding:20px; color:#888;">No se encontraron registros para el periodo:<br><b>${rangeText}</b></p>`;
+        }
+
+        window.verDetalleSemanal = function (nombre) {
+            const rango = obtenerRangoSemanal();
+            const fI = rango.inicio.getTime();
+            const fF = rango.fin.getTime();
+            
+            const reportesDomi = [];
+            [...historialData].sort((a, b) => b.timestamp - a.timestamp).forEach(h => {
+                if (h.timestamp >= fI && h.timestamp <= fF) {
+                    const d = h.detalle.find(det => det.n === nombre);
+                    if (d) {
+                        reportesDomi.push({
+                            fecha: h.fecha,
+                            ...d
+                        });
+                    }
+                }
+            });
+
+            if (reportesDomi.length === 0) {
+                alert("No hay registros para este domiciliario en la semana seleccionada.");
+                return;
+            }
+
+            let totalEntregas = 0, totalPay = 0, totalHours = 0, totalExtras = 0;
+            let breakdownHTML = reportesDomi.map(r => {
+                totalEntregas += (r.e || 0);
+                totalPay += (r.tot || 0);
+                totalHours += (r.h || 0);
+                totalExtras += (r.hx || 0);
+                
+                const formatM = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v || 0);
+                const h = Math.floor((r.h || 0) / 60);
+                const m = (r.h || 0) % 60;
+                const hx = Math.floor((r.hx || 0) / 60);
+                const mx = (r.hx || 0) % 60;
+
+                return `
+                    <div style="padding:8px; border-bottom:1px solid #eee; font-size:0.85rem">
+                        <div style="font-weight:700; color:var(--primary)">${r.fecha}</div>
+                        <div style="display:flex; justify-content:space-between">
+                            <span>Entregas: ${r.e || 0} | Tortas: ${r.t || 0}</span>
+                            <span style="font-weight:600">${formatM(r.tot)}</span>
+                        </div>
+                        <div style="font-size:0.75rem; color:#8d99ae">
+                            Reloj: ${r.ing || '--'} a ${r.fin || '--'} (${h}h ${m}m) | Extras: ${hx}h ${mx}m
+                        </div>
+                    </div>
+                `;
+            }).reverse().join(''); // Invertir para que aparezcan de más antiguo a más nuevo
+
+            const hT = Math.floor(totalHours / 60);
+            const mT = totalHours % 60;
+            const hXT = Math.floor(totalExtras / 60);
+            const mXT = totalExtras % 60;
+            const formatM = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
+
+            const content = `
+                <h3 style="margin:0 0 5px 0">${nombre}</h3>
+                <p style="color:var(--primary); font-weight:700; margin-bottom:5px">Informe Semanal</p>
+                <p style="font-size:0.75rem; color:#8d99ae; margin-bottom:15px">${rango.inicio.toLocaleDateString()} al ${rango.fin.toLocaleDateString()}</p>
+                <div style="background:#f8f9fa; padding:15px; border-radius:10px; margin-bottom:15px">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                        <span>Total Entregas:</span> <b>${totalEntregas}</b>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                        <span>Horas Laboradas:</span> <b>${hT}h ${mT}m</b>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px">
+                        <span>Horas Extras:</span> <b>${hXT}h ${mXT}m</b>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:10px; border-top:2px solid #fff; font-size:1.1rem">
+                        <span>Total a Pagar:</span> <b style="color:var(--success)">${formatM(totalPay)}</b>
+                    </div>
+                </div>
+                <div style="max-height:200px; overflow-y:auto; margin-bottom:10px">
+                    <p style="font-weight:600; font-size:0.8rem; margin-bottom:5px">Detalle día a día:</p>
+                    ${breakdownHTML}
+                </div>
+            `;
+
+            document.getElementById('contenidoDetalleSemanal').innerHTML = content;
+            document.getElementById('modalDetalleSemanal').style.display = 'flex';
+
+            document.getElementById('btnWhatsAppSemanal').onclick = function() {
+                const maestro = personalMaestro.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
+                let contact = maestro ? maestro.contacto : "";
+                if (!contact) { alert("No hay contacto registrado."); return; }
+
+                const cleanNum = contact.replace(/\D/g, "");
+                const finalNum = cleanNum.length === 10 ? '57' + cleanNum : cleanNum;
+
+                let msgDetails = reportesDomi.reverse().map(r => {
+                    return `• *${r.fecha}:* Entregas: ${r.e || 0} | $${(r.tot || 0).toLocaleString('es-CO')}`;
+                }).join('\n');
+
+                const msg = window.encodeURIComponent(
+                    `*Informe Semanal - Pez Postre*\n\n` +
+                    `*Domi:* ${nombre}\n` +
+                    `*Periodo:* ${rango.inicio.toLocaleDateString()} - ${rango.fin.toLocaleDateString()}\n\n` +
+                    `*Resumen:* \n` +
+                    `📦 Entregas Totales: ${totalEntregas}\n` +
+                    `⏱️ Horas Laboradas: ${hT}h ${mT}m\n` +
+                    `⚡ Horas Extras: ${hXT}h ${mXT}m\n` +
+                    `💰 *TOTAL A PAGAR: ${formatM(totalPay)}*\n\n` +
+                    `*Desglose diario:*\n` +
+                    msgDetails +
+                    `\n\n_Favor verificar y confirmar. ¡Excelente semana!_`
+                );
+                window.open(`https://wa.me/${finalNum}?text=${msg}`, '_blank');
+            };
+        };
 
         // --- SCROLL TO TOP ---
         const scrollBtn = document.getElementById("btnScrollTop");
