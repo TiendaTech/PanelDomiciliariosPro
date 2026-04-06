@@ -50,11 +50,20 @@
 
         .title-container {
             display: flex;
+            flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 15px;
-            margin: 5px 0 20px 0;
+            gap: 12px;
+            margin: 10px 0 25px 0;
             position: relative;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
         }
 
         .version-badge {
@@ -138,9 +147,31 @@
         }
 
         .btn-users:hover,
-        .btn-dashboard:hover {
+        .btn-dashboard:hover,
+        .btn-login:hover {
             transform: scale(1.1);
             filter: brightness(1.2);
+        }
+
+        .btn-login {
+            background: #333;
+            color: white !important;
+            width: 38px;
+            height: 38px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-logout {
+            background: #ff4757 !important;
+            /* Rojo suave para destacar salida */
+            color: white !important;
         }
 
         .logo-container {
@@ -813,21 +844,36 @@
             <img src="LOGO DOMIFASTER.png" alt="Domifaster Logo" class="main-logo">
         </div>
         <div class="title-container">
-            <button class="btn-dashboard" onclick="abrirModalDashboard()" title="Reportes y Gráficas">
-                <i class="fas fa-chart-line"></i>
-            </button>
-            <button class="btn-dashboard" style="background: #6c5ce7; margin-left: 5px;" onclick="abrirModalSemanales()" title="Informes Semanales">
-                <i class="fas fa-calendar-week"></i>
-            </button>
-            <h1 id="titulo-panel">Panel Domiciliarios</h1>
             <div class="version-badge">V 5.1</div>
             <div id="connection-status" class="status-badge" title="Estado de la conexión">
                 <div class="status-dot"></div>
                 <span id="status-text">Desconectado</span>
             </div>
-            <button class="btn-users" onclick="abrirModalPersonal()" title="Gestión de Personal">
-                <i class="fas fa-users-cog"></i>
-            </button>
+
+            <h1 id="titulo-panel">Panel Domiciliarios</h1>
+
+            <div class="header-actions">
+                <button class="btn-dashboard" id="btn-reportes" onclick="abrirModalDashboard()"
+                    title="Reportes y Gráficas">
+                    <i class="fas fa-chart-line"></i>
+                </button>
+                <button class="btn-dashboard" id="btn-semanales" style="background: #6c5ce7; margin-left: 5px;"
+                    onclick="abrirModalSemanales()" title="Informes Semanales">
+                    <i class="fas fa-calendar-week"></i>
+                </button>
+                <button class="btn-login" id="btn-acceso-supervisor" onclick="accesoSupervisor()"
+                    title="Acceso Supervisor">
+                    <i class="fas fa-lock"></i>
+                </button>
+                <button class="btn-login btn-logout" id="btn-salir-supervisor" onclick="window.location.search=''"
+                    title="Volver a Operador" style="display:none;">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+                <button class="btn-users" id="btn-gestion-personal" onclick="abrirModalPersonal()"
+                    title="Gestión de Personal">
+                    <i class="fas fa-users-cog"></i>
+                </button>
+            </div>
         </div>
 
         <div class="header-grid">
@@ -836,7 +882,8 @@
             <button class="btn-header btn-add" id="btn-agregar" onclick="agregar()"><i class="fas fa-plus"></i></button>
             <div class="mini-stat bg-entregas"><label>Rutas</label><b id="entregas-globales">0</b></div>
             <div class="mini-stat bg-tortas"><label>Tortas</label><b id="tortas-globales">0</b></div>
-            <button class="btn-header btn-excel" onclick="exportarExcel()"><i class="fas fa-file-excel"></i></button>
+            <button class="btn-header btn-excel" id="btn-exportar-excel" onclick="exportarExcel()"><i
+                    class="fas fa-file-excel"></i></button>
             <button class="btn-header btn-clear" id="btn-borrar-todo" onclick="borrarTodo()"><i
                     class="fas fa-trash-alt"></i></button>
         </div>
@@ -1014,16 +1061,19 @@
 
     <div class="modal-overlay" id="modalSemanales" onclick="if(event.target === this) cerrarModal(this.id)">
         <div class="modal-content" style="max-width: 650px;">
-            <div style="color: #6c5ce7; font-size: 1.5rem; margin-bottom: 5px;"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div style="color: #6c5ce7; font-size: 1.5rem; margin-bottom: 5px;"><i
+                    class="fas fa-file-invoice-dollar"></i></div>
             <h3>Liquidación Semanal</h3>
-            <p style="font-size: 0.8rem; color: #8d99ae; margin-bottom: 15px;">Selecciona un domiciliario para ver su resumen de la semana y enviarlo por WhatsApp.</p>
-            
+            <p style="font-size: 0.8rem; color: #8d99ae; margin-bottom: 15px;">Selecciona un domiciliario para ver su
+                resumen de la semana y enviarlo por WhatsApp.</p>
+
             <div class="personal-list-container" id="listaSemanales" style="max-height: 400px; text-align: left;">
                 <!-- Se cargará dinámicamente -->
             </div>
 
             <div class="modal-btns">
-                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalSemanales')" style="width: 100%; background: #eee;">Cerrar</button>
+                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalSemanales')"
+                    style="width: 100%; background: #eee;">Cerrar</button>
             </div>
         </div>
     </div>
@@ -1032,7 +1082,8 @@
         <div class="modal-content" style="max-width: 500px; text-align: left;">
             <div id="contenidoDetalleSemanal"></div>
             <div class="modal-btns">
-                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalDetalleSemanal')" style="background: #eee;">Volver</button>
+                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalDetalleSemanal')"
+                    style="background: #eee;">Volver</button>
                 <button class="btn-modal" id="btnWhatsAppSemanal" style="background: #25D366; color: white;">
                     <i class="fab fa-whatsapp"></i> Enviar Informe
                 </button>
@@ -1044,18 +1095,40 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // --- LÓGICA DE ROLES SENIOR ---
+        // --- LÓGICA DE ROLES (MODO SUPERVISOR Y OPERADOR) ---
         const urlParams = new URLSearchParams(window.location.search);
-        const isViewOnly = urlParams.get('mode') === 'view';
+        const mode = urlParams.get('mode');
+        const isSupervisor = mode === 'supervisor';
 
-        // Aplicar restricciones si es modo supervisor
-        if (isViewOnly) {
+        // Aplicar restricciones según el rol
+        if (isSupervisor) {
             document.getElementById('nombreInput').disabled = true;
             document.getElementById('nombreInput').placeholder = "Modo Supervisión Activo";
             document.getElementById('btn-agregar').style.display = 'none';
-            document.getElementById('btn-borrar-todo').style.display = 'none';
-            document.getElementById('titulo-panel').innerText = "Panel Supervisión";
+            document.getElementById('titulo-panel').innerHTML = "Panel Domiciliarios <span style='font-size:0.6rem; color:var(--danger)'></span>";
+
+            if (document.getElementById('btn-acceso-supervisor')) document.getElementById('btn-acceso-supervisor').style.display = 'none';
+            if (document.getElementById('btn-salir-supervisor')) document.getElementById('btn-salir-supervisor').style.display = 'flex';
+        } else {
+            // Ocultar funciones administrativas para Operadores
+            if (document.getElementById('btn-reportes')) document.getElementById('btn-reportes').style.display = 'none';
+            if (document.getElementById('btn-semanales')) document.getElementById('btn-semanales').style.display = 'none';
+            if (document.getElementById('btn-gestion-personal')) document.getElementById('btn-gestion-personal').style.display = 'none';
+            if (document.getElementById('btn-exportar-excel')) document.getElementById('btn-exportar-excel').style.display = 'none';
+            if (document.getElementById('btn-borrar-todo')) document.getElementById('btn-borrar-todo').style.display = 'none';
+
+            if (document.getElementById('btn-acceso-supervisor')) document.getElementById('btn-acceso-supervisor').style.display = 'flex';
+            if (document.getElementById('btn-salir-supervisor')) document.getElementById('btn-salir-supervisor').style.display = 'none';
         }
+
+        window.accesoSupervisor = function () {
+            const pass = prompt("Introduce la contraseña de Supervisor:");
+            if (pass === "D0m1f45t3r") {
+                window.location.search = "?mode=supervisor";
+            } else if (pass !== null) {
+                alert("Contraseña incorrecta.");
+            }
+        };
 
         const firebaseConfig = {
             apiKey: "AIzaSyAYUF9VnjtlMj-gOqYgoG2q1ZxIzv8pbEQ",
@@ -1099,7 +1172,7 @@
                 if (m) currentSal = m.salario;
             }
             let baseDaily = (currentSal && currentSal.trim() !== "") ? parseInt(currentSal.replace(/\D/g, "")) : 0;
-            
+
             let valBase = 0;
             if (isCoord || isLid) {
                 valBase = baseDaily;
@@ -1178,7 +1251,7 @@
                 return d;
             });
 
-            if (needsMigration && !isViewOnly) {
+            if (needsMigration) {
                 console.log("Normalizando turnos para cola equitativa...");
                 const updates = {};
                 tempArray.forEach(d => updates[d.id] = d);
@@ -1220,9 +1293,8 @@
         };
 
         async function guardar(d) {
-            if (isViewOnly || !d || !d.id) return;
+            if (!d || !d.id) return;
             try {
-                // Seteamos directamente el objeto recibido para evitar colisiones con el estado global re-sincronizado
                 const targetRef = ref(db, `domiciliarios/${d.id}`);
                 await set(targetRef, d);
             } catch (error) {
@@ -1231,7 +1303,7 @@
         }
 
         async function guardarMaestro(p) {
-            if (isViewOnly || !p || !p.id) return;
+            if (!p || !p.id) return;
             try {
                 const targetRef = ref(db, `personal_maestro/${p.id}`);
                 await set(targetRef, p);
@@ -1341,7 +1413,7 @@
         };
 
         window.borrarTodaLaBaseMaestra = async function () {
-            if (isViewOnly) return;
+            if (!isSupervisor) return;
             const pass = prompt("Para confirmar el borrado de TODA la base maestra de personal, escribe la palabra: ELIMINAR");
             if (pass === "ELIMINAR") {
                 if (confirm("¿Estás absolutamente seguro? Esta acción no se puede deshacer.")) {
@@ -1764,7 +1836,6 @@
         };
 
         window.agregar = function () {
-            if (isViewOnly) return;
             let input = document.getElementById("nombreInput");
             const nombreTxt = input.value.trim();
             if (!nombreTxt) return;
@@ -1798,7 +1869,7 @@
         };
 
         window.borrarTodo = async function () {
-            if (isViewOnly) return;
+            if (!isSupervisor) return;
             if (confirm("¿Borrar todos los datos? Al hacerlo se archivará el reporte de hoy en el historial.")) {
                 // Archivar antes de borrar
                 const reporteHoy = {
@@ -1808,9 +1879,9 @@
                     totalTortas: domiciliarios.reduce((acc, d) => acc + (d.tortasPescado || 0), 0),
                     detalle: domiciliarios.map(d => {
                         const liq = calcularLiquidacion(d);
-                        return { 
-                            n: d.nombre, 
-                            e: d.entregasRealizadas, 
+                        return {
+                            n: d.nombre,
+                            e: d.entregasRealizadas,
                             t: d.tortasPescado,
                             b: liq.base,
                             ex: liq.extras,
@@ -1898,7 +1969,7 @@
         }
 
         window.cambiarEstado = async function (id) {
-            if (isViewOnly) return;
+            if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id === id);
             if (d.estado === "activo" || d.estado === "inactivo") {
                 const modal = document.getElementById('modalRuta');
@@ -1924,7 +1995,7 @@
         };
 
         window.descontarTodo = async function (id) {
-            if (isViewOnly) return;
+            if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id === id);
             const modal = document.getElementById('modalAjuste');
             const inEnt = document.getElementById('restarEntregas');
@@ -1946,7 +2017,7 @@
         };
 
         window.sumarTodo = async function (id) {
-            if (isViewOnly) return;
+            if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id === id);
             const modal = document.getElementById('modalSumar');
             const inEnt = document.getElementById('sumarEntregas');
@@ -1968,7 +2039,7 @@
         };
 
         window.gestionarAlmuerzo = function (id) {
-            if (isViewOnly) return;
+            if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id === id);
             if (d.estado !== "almorzando") {
                 d.estado = "almorzando";
@@ -2039,7 +2110,7 @@
         };
 
         window.finalizarTurno = function (id) {
-            if (isViewOnly) return;
+            if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id === id);
             if (confirm(`¿Finalizar turno de ${d.nombre}?`)) {
                 d.finLaboral = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -2051,14 +2122,14 @@
         };
 
         window.eliminar = async function (id) {
-            if (isViewOnly) return;
+            if (!isSupervisor) return;
             if (confirm("¿Eliminar domiciliario?")) {
                 set(ref(db, `domiciliarios/${id}`), null);
             }
         };
 
         window.toggleInactivo = function (id) {
-            if (isViewOnly) return;
+            if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id === id);
             d.estado = d.estado === "inactivo" ? "activo" : "inactivo";
             if (d.estado === "activo") {
@@ -2114,14 +2185,27 @@
                     else if (rankIdx === 1) rankBadge = '<i class="fas fa-medal medal medal-plata" title="Top 2"></i>';
                     else if (rankIdx === 2) rankBadge = '<i class="fas fa-medal medal medal-bronce" title="Top 3"></i>';
 
-                    // En modo supervisor, las acciones se ocultan dinámicamente
-                    const actionsStyle = isViewOnly ? 'style="display:none"' : '';
-                    const discountBtnHTML = isViewOnly ? '' : `
+                    // Lógica de visibilidad de botones según rol
+                    const isOperator = !isSupervisor;
+
+                    const discountBtnHTML = isOperator ? `
                         <div class="adj-btns">
                             <button class="btn-increase" onclick="sumarTodo(${d.id})"><i class="fas fa-plus-circle"></i></button>
                             <button class="btn-discount" onclick="descontarTodo(${d.id})"><i class="fas fa-minus-circle"></i></button>
                         </div>
-                    `;
+                    ` : '';
+
+                    let actionsHTML = "";
+                    if (isOperator) {
+                        actionsHTML = `
+                            <button class="btn-act btn-wa" onclick="enviarWhatsApp(${d.id})" title="Enviar resumen WhatsApp"><i class="fab fa-whatsapp"></i></button>
+                            <button class="btn-act" onclick="toggleInactivo(${d.id})" style="color:${d.estado === 'inactivo' ? 'var(--danger)' : '#ccc'}" title="Activar/Desactivar"><i class="fas fa-power-off"></i></button>
+                            <button class="btn-act" onclick="cambiarEstado(${d.id})" style="color:var(--warning)" title="Asignar Ruta / Marcar como Activo"><i class="fas ${d.estado === 'ruta' ? 'fa-check' : 'fa-route'}"></i></button>
+                            <button class="btn-act" onclick="gestionarAlmuerzo(${d.id})" style="color:var(--primary)" title="Enviar/Volver Almuerzo"><i class="fas fa-utensils"></i></button>
+                            <button class="btn-act" onclick="finalizarTurno(${d.id})" style="color:var(--dark)}" title="Finalizar Turno Laboral"><i class="fas fa-sign-out-alt"></i></button>
+                            <button class="btn-act btn-delete" onclick="eliminar(${d.id})" title="Eliminar domiciliario"><i class="fas fa-trash"></i></button>
+                        `;
+                    }
 
                     html += `
                         <div class="item">
@@ -2140,13 +2224,8 @@
                                     ${discountBtnHTML}
                                 </div>
                             </div>
-                            <div class="actions" ${actionsStyle}>
-                                <button class="btn-act btn-wa" onclick="enviarWhatsApp(${d.id})" title="Enviar resumen WhatsApp"><i class="fab fa-whatsapp"></i></button>
-                                <button class="btn-act" onclick="toggleInactivo(${d.id})" style="color:${d.estado === 'inactivo' ? 'var(--danger)' : '#ccc'}"><i class="fas fa-power-off"></i></button>
-                                <button class="btn-act" onclick="cambiarEstado(${d.id})" style="color:var(--warning)"><i class="fas ${d.estado === 'ruta' ? 'fa-check' : 'fa-route'}"></i></button>
-                                <button class="btn-act" onclick="gestionarAlmuerzo(${d.id})" style="color:var(--primary)"><i class="fas fa-utensils"></i></button>
-                                <button class="btn-act" onclick="finalizarTurno(${d.id})" style="color:var(--dark)"><i class="fas fa-sign-out-alt"></i></button>
-                                <button class="btn-act btn-delete" onclick="eliminar(${d.id})"><i class="fas fa-trash"></i></button>
+                            <div class="actions">
+                                ${actionsHTML}
                             </div>
                         </div>`;
                 }
@@ -2188,19 +2267,19 @@
         function obtenerRangoSemanal() {
             const hoy = new Date();
             const diaSemana = hoy.getDay(); // 0: Dom, 1: Lun... 6: Sab
-            
+
             // Si hoy es domingo, queremos reportar la semana que terminó ayer sábado.
             // Si es otro día, reportamos la última semana de domingo a sábado completada.
             const diasAlSabado = (diaSemana === 0) ? 1 : diaSemana + 1;
-            
+
             const fin = new Date(hoy);
             fin.setDate(hoy.getDate() - diasAlSabado);
             fin.setHours(23, 59, 59, 999);
-            
+
             const inicio = new Date(fin);
             inicio.setDate(fin.getDate() - 6);
             inicio.setHours(0, 0, 0, 0);
-            
+
             return { inicio, fin };
         }
 
@@ -2253,7 +2332,7 @@
             const rango = obtenerRangoSemanal();
             const fI = rango.inicio.getTime();
             const fF = rango.fin.getTime();
-            
+
             const reportesDomi = [];
             [...historialData].sort((a, b) => b.timestamp - a.timestamp).forEach(h => {
                 if (h.timestamp >= fI && h.timestamp <= fF) {
@@ -2278,7 +2357,7 @@
                 totalPay += (r.tot || 0);
                 totalHours += (r.h || 0);
                 totalExtras += (r.hx || 0);
-                
+
                 const formatM = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v || 0);
                 const h = Math.floor((r.h || 0) / 60);
                 const m = (r.h || 0) % 60;
@@ -2332,7 +2411,7 @@
             document.getElementById('contenidoDetalleSemanal').innerHTML = content;
             document.getElementById('modalDetalleSemanal').style.display = 'flex';
 
-            document.getElementById('btnWhatsAppSemanal').onclick = function() {
+            document.getElementById('btnWhatsAppSemanal').onclick = function () {
                 const maestro = personalMaestro.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
                 let contact = maestro ? maestro.contacto : "";
                 if (!contact) { alert("No hay contacto registrado."); return; }
