@@ -1067,6 +1067,12 @@
             <p style="font-size: 0.8rem; color: #8d99ae; margin-bottom: 15px;">Selecciona un domiciliario para ver su
                 resumen de la semana y enviarlo por WhatsApp.</p>
 
+            <div class="search-wrapper" style="margin-bottom: 15px;">
+                <i class="fas fa-search"></i>
+                <input type="text" id="busquedaSemanales" placeholder="Buscar domiciliario..."
+                    oninput="filtrarSemanales(this.value)">
+            </div>
+
             <div class="personal-list-container" id="listaSemanales" style="max-height: 400px; text-align: left;">
                 <!-- Se cargará dinámicamente -->
             </div>
@@ -1099,7 +1105,8 @@
             <p id="confirmText" style="font-size: 0.9rem; color: #666; margin-bottom: 20px;"></p>
             <div class="modal-btns">
                 <button class="btn-modal" id="btnConfirmarNo" style="background: #eee; color: #333;">Cancelar</button>
-                <button class="btn-modal" id="btnConfirmarSi" style="background: var(--primary); color: white;"></button>
+                <button class="btn-modal" id="btnConfirmarSi"
+                    style="background: var(--primary); color: white;"></button>
             </div>
         </div>
     </div>
@@ -1213,7 +1220,7 @@
                 const m = personalMaestro.find(p => normalize(p.nombre) === nameNorm);
                 if (m) currentSal = m.salario;
             }
-            let baseDaily = (currentSal && currentSal.trim() !== "") ? parseInt(currentSal.replace(/\D/g, "")) : 0;
+            let baseDaily = (currentSal && currentSal.trim() !== "") ? parseInt(currentSal.replace(/\D/g, "")) : 100000;
 
             let valBase = 0;
             if (isCoord || isLid) {
@@ -1661,7 +1668,12 @@
                     dHrs = "8h 30m";
                 }
 
-                let dValBase = 143000;
+                let currentSal = d.salario;
+                if (!currentSal || currentSal.trim() === "") {
+                    const m = personalMaestro.find(p => norm(p.nombre) === nameNorm);
+                    if (m) currentSal = m.salario;
+                }
+                let dValBase = (currentSal && currentSal.trim() !== "") ? parseInt(currentSal.replace(/\\D/g, "")) : 100000;
 
                 if (isCoord || isLid) {
                     if (isCoord) cCoord++; else cLid++;
@@ -2171,11 +2183,11 @@
             }
 
             const msg = window.encodeURIComponent(
-                `*Resumen de Ruta - Pez Postre*\n\n` +
+                `*Resumen de Ruta - DomiFaster*\n\n` +
                 `*Fecha:* ${new Date().toLocaleDateString()}\n` +
-                `*Domi:* ${d.nombre}\n` +
+                `*Domiciliario:* ${d.nombre}\n` +
                 `*Ingreso:* ${d.inicioLaboral}\n` +
-                `*Cierre:* ${d.finLaboral || '--:--'}\n` +
+                `*Salida:* ${d.finLaboral || '--:--'}\n` +
                 `*Entregas:* ${d.entregasRealizadas}\n` +
                 `*Tortas:* ${d.tortasPescado || 0}\n` +
                 desgloseMsg + `\n` +
@@ -2359,29 +2371,37 @@
         // --- LÓGICA DE REPORTES SEMANALES (DOMINGO A SÁBADO) ---
         function obtenerRangoSemanal() {
             const hoy = new Date();
-            const diaSemana = hoy.getDay(); // 0: Dom, 1: Lun... 6: Sab
+            const diaSemana = hoy.getDay(); // 0: Dom, 1: Lun, ..., 6: Sab
 
-            // Si hoy es domingo, queremos reportar la semana que terminó ayer sábado.
-            // Si es otro día, reportamos la última semana de domingo a sábado completada.
-            const diasAlSabado = (diaSemana === 0) ? 1 : diaSemana + 1;
+            // Según el usuario: la liquidación es de domingo a sábado.
+            // Los lunes se reinicia la semana y pasa a la siguiente.
+            // Si hoy es domingo (0), mostramos la semana que terminó ayer sábado.
+            // Si hoy es de lunes (1) a sábado (6), mostramos la semana actual (que empezó el domingo pasado).
+            const diasAtrasAlDomingo = (diaSemana === 0) ? 7 : diaSemana;
 
-            const fin = new Date(hoy);
-            fin.setDate(hoy.getDate() - diasAlSabado);
-            fin.setHours(23, 59, 59, 999);
-
-            const inicio = new Date(fin);
-            inicio.setDate(fin.getDate() - 6);
+            const inicio = new Date(hoy);
+            inicio.setDate(hoy.getDate() - diasAtrasAlDomingo);
             inicio.setHours(0, 0, 0, 0);
+
+            const fin = new Date(inicio);
+            fin.setDate(inicio.getDate() + 6);
+            fin.setHours(23, 59, 59, 999);
 
             return { inicio, fin };
         }
 
         window.abrirModalSemanales = function () {
             document.getElementById('modalSemanales').style.display = 'flex';
+            const inputBusqueda = document.getElementById('busquedaSemanales');
+            if (inputBusqueda) inputBusqueda.value = '';
             renderReportesSemanales();
         };
 
-        function renderReportesSemanales() {
+        window.filtrarSemanales = function (val) {
+            renderReportesSemanales(val);
+        };
+
+        function renderReportesSemanales(filtro = "") {
             const container = document.getElementById('listaSemanales');
             if (historialData.length === 0) {
                 container.innerHTML = '<p>No hay datos históricos para generar reportes.</p>';
@@ -2408,17 +2428,20 @@
 
             const nombres = Array.from(nombresSet).sort();
             let html = "";
+            const filtroMin = filtro.toLowerCase().trim();
             nombres.forEach(nombre => {
-                html += `
-                    <div class="personal-row" style="cursor:pointer" onclick="verDetalleSemanal('${nombre}')">
-                        <div class="personal-info-main">
-                            <span><i class="fas fa-user-circle"></i> ${nombre}</span>
-                            <i class="fas fa-chevron-right" style="color:#6c5ce7"></i>
+                if (filtroMin === "" || nombre.toLowerCase().includes(filtroMin)) {
+                    html += `
+                        <div class="personal-row" style="cursor:pointer" onclick="verDetalleSemanal('${nombre}')">
+                            <div class="personal-info-main">
+                                <span><i class="fas fa-user-circle"></i> ${nombre}</span>
+                                <i class="fas fa-chevron-right" style="color:#6c5ce7"></i>
+                            </div>
                         </div>
-                    </div>
-                `;
+                    `;
+                }
             });
-            container.innerHTML = html || `<p style="text-align:center; padding:20px; color:#888;">No se encontraron registros para el periodo:<br><b>${rangeText}</b></p>`;
+            container.innerHTML = html || `<p style="text-align:center; padding:20px; color:#888;">No se encontraron registros${filtroMin ? ' para tu búsqueda' : ' para el periodo:<br><b>' + rangeText + '</b>'}</p>`;
         }
 
         window.verDetalleSemanal = function (nombre) {
