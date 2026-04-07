@@ -1661,12 +1661,7 @@
                     dHrs = "8h 30m";
                 }
 
-                let currentSal = d.salario;
-                if (!currentSal || currentSal.trim() === "") {
-                    const m = personalMaestro.find(p => norm(p.nombre) === nameNorm);
-                    if (m) currentSal = m.salario;
-                }
-                let dValBase = (currentSal && currentSal.trim() !== "") ? parseInt(currentSal.replace(/\D/g, "")) : 0;
+                let dValBase = 143000;
 
                 if (isCoord || isLid) {
                     if (isCoord) cCoord++; else cLid++;
