@@ -1324,7 +1324,33 @@
 
         onValue(historialRef, (snapshot) => {
             const data = snapshot.val();
-            historialData = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+            if (!data) {
+                historialData = [];
+                return;
+            }
+
+            let changed = false;
+            // Corrección temporal para el reporte del 6 de abril de Wilfredo Castro
+            Object.keys(data).forEach(key => {
+                const h = data[key];
+                if (h.detalle && Array.isArray(h.detalle)) {
+                    h.detalle.forEach(d => {
+                        // Detectamos el reporte de Wilfredo donde su total fue de $7.000
+                        if (d.n && d.n.includes("Wilfredo") && d.tot === 7000) {
+                            d.b = 100000; // Restauramos la base a $100.000
+                            d.tot = 107000; // Total es 100k + 7k de extra
+                            changed = true;
+                        }
+                    });
+                }
+            });
+
+            if (changed) {
+                console.log("Restaurando base salarial del 6 de abril...");
+                set(historialRef, data);
+            }
+
+            historialData = Array.isArray(data) ? data : Object.values(data);
         }, (error) => console.error("Error cargando historial:", error));
 
         window.actualizarDatalist = function (filtro = "") {
