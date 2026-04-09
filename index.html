@@ -2113,9 +2113,11 @@
                 d.rutasRealizadas++;
                 d.entregasRealizadas += data.e;
                 d.tortasPescado += data.t;
+                d.rutaStartTimestamp = Date.now(); // <--- INICIO CRONOMETRO RUTA
                 d.turnoTimestamp = Date.now(); // Al final de la cola 'En Ruta'
             } else {
                 d.estado = "activo";
+                d.rutaStartTimestamp = null; // <--- FIN CRONOMETRO RUTA
                 d.turnoTimestamp = Date.now(); // Pasa al final de la fila al activarse
             }
             guardar(d);
@@ -2171,6 +2173,7 @@
             if (d.estado !== "almorzando") {
                 d.estado = "almorzando";
                 d.finAlmuerzo = Date.now() + TIEMPO_ALMUERZO;
+                d.rutaStartTimestamp = null;
                 d.turnoTimestamp = Date.now(); // Al final de la cola 'Almuerzo'
             } else {
                 d.estado = "activo";
@@ -2250,6 +2253,7 @@
                 d.finLaboral = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 d.finTimestamp = Date.now();
                 d.estado = "inactivo";
+                d.rutaStartTimestamp = null;
                 d.turnoTimestamp = Date.now(); // Al final de la cola 'Ocupados'
                 guardar(d);
             }
@@ -2273,6 +2277,7 @@
             if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id === id);
             d.estado = d.estado === "inactivo" ? "activo" : "inactivo";
+            d.rutaStartTimestamp = null;
             if (d.estado === "activo") {
                 d.turnoTimestamp = Date.now(); // Al final de la cola 'Libres'
             } else {
@@ -2319,7 +2324,11 @@
                     let timer = "";
                     if (d.estado === "almorzando" && d.finAlmuerzo) {
                         let diff = Math.max(0, Math.floor((d.finAlmuerzo - ahora) / 1000));
-                        timer = `<span style="color:var(--danger); font-weight:800; font-size:0.8rem;">${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
+                        timer = `<span style="color:var(--danger); font-weight:800; font-size:0.8rem;"><i class="fas fa-utensils"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
+                    }
+                    if (d.estado === "ruta" && d.rutaStartTimestamp) {
+                        let diff = Math.max(0, Math.floor((ahora - d.rutaStartTimestamp) / 1000));
+                        timer = `<span style="color:var(--warning); font-weight:800; font-size:0.8rem;"><i class="fas fa-stopwatch"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
                     }
 
                     // Badge de Ranking
