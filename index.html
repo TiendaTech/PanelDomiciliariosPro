@@ -1061,8 +1061,12 @@
 
     <div class="modal-overlay" id="modalSemanales" onclick="if(event.target === this) cerrarModal(this.id)">
         <div class="modal-content" style="max-width: 650px;">
-            <div style="color: #6c5ce7; font-size: 1.5rem; margin-bottom: 5px;"><i
-                    class="fas fa-file-invoice-dollar"></i></div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
+                <div style="color: #6c5ce7; font-size: 1.5rem;"><i class="fas fa-file-invoice-dollar"></i></div>
+                <button onclick="repararHistorial()" style="background:#fffafa; color:#d32f2f; border:1px solid #ffebee; padding:5px 10px; border-radius:10px; font-size:0.65rem; font-weight:700; cursor:pointer">
+                    <i class="fas fa-tools"></i> Reparar Historial
+                </button>
+            </div>
             <h3>Liquidación Semanal</h3>
             <p style="font-size: 0.8rem; color: #8d99ae; margin-bottom: 15px;">Selecciona un domiciliario para ver su
                 resumen de la semana y enviarlo por WhatsApp.</p>
@@ -1174,6 +1178,27 @@
         let filtroEstado = 'todos';
         const TIEMPO_ALMUERZO = 35 * 60 * 1000;
 
+        // --- UTILIDAD PARA CÁLCULO DE TIEMPO POR STRINGS (SOLUCIÓN A INCONSISTENCIAS DE DB) ---
+        function obtenerMinutosEntre(ingreso, salida) {
+            if (!ingreso || !salida || ingreso === "--:--" || salida === "--:--") return 0;
+            const parsear = (str) => {
+                const match = str.match(/(\d+):(\d+)\s*(AM|PM)/i);
+                if (!match) return null;
+                let hrs = parseInt(match[1]);
+                let mins = parseInt(match[2]);
+                const ampm = match[3].toUpperCase();
+                if (ampm === "PM" && hrs < 12) hrs += 12;
+                if (ampm === "AM" && hrs === 12) hrs = 0;
+                return hrs * 60 + mins;
+            };
+            const mIng = parsear(ingreso);
+            const mSal = parsear(salida);
+            if (mIng === null || mSal === null) return 0;
+            let dif = mSal - mIng;
+            if (dif < 0) dif += 1440; // Caso cruce de medianoche
+            return dif;
+        }
+
         // --- FUNCIÓN DE CONFIRMACIÓN PERSONALIZADA ---
         window.confirmarAccion = function (obj) {
             return new Promise((resolve) => {
@@ -1214,7 +1239,7 @@
             const isLid = lideresNames.some(n => normalize(n) === nameNorm);
             const isIndrive = nameNorm.includes("indrive");
 
-            // Salario Base
+            // Salario Base (Dinámico para Liquidación Semanal y Dashboard)
             let currentSal = d.salario;
             if (!currentSal || currentSal.trim() === "") {
                 const m = personalMaestro.find(p => normalize(p.nombre) === nameNorm);
@@ -1229,12 +1254,22 @@
                 valBase = baseDaily;
             }
 
-            // Extras por tiempo
+            // Extras por tiempo (Basado en los textos de ingreso/salida)
             let valExtra = 0;
             let minsExtra = 0;
             let totalMins = 0;
-            if (!isIndrive && d.finTimestamp && d.inicioTimestamp) {
-                totalMins = Math.floor((d.finTimestamp - d.inicioTimestamp) / 60000);
+            
+            if (!isIndrive) {
+                let shiftStart = d.inicioLaboral;
+                let shiftEnd = d.finLaboral;
+
+                // Fallbacks para Coordinadores/Lideres si no hay registro manual
+                if (isCoord || isLid) {
+                    if (!shiftStart || shiftStart === "--:--") shiftStart = "08:00 AM";
+                    if (!shiftEnd || shiftEnd === "--:--") shiftEnd = "04:30 PM";
+                }
+
+                totalMins = obtenerMinutosEntre(shiftStart, shiftEnd);
                 if (totalMins > 510) {
                     const extraMin = totalMins - 510;
                     const halfHours = Math.floor(extraMin / 30);
@@ -1322,32 +1357,13 @@
             personalMaestro = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
         }, (error) => console.error("Error cargando maestro:", error));
 
+        let historialData_raw = {};
         onValue(historialRef, (snapshot) => {
             const data = snapshot.val();
+            historialData_raw = data || {};
             if (!data) {
                 historialData = [];
                 return;
-            }
-
-            let changed = false;
-            // Corrección temporal para el reporte del 6 de abril de Wilfredo Castro
-            Object.keys(data).forEach(key => {
-                const h = data[key];
-                if (h.detalle && Array.isArray(h.detalle)) {
-                    h.detalle.forEach(d => {
-                        // Detectamos el reporte de Wilfredo donde su total fue de $7.000
-                        if (d.n && d.n.includes("Wilfredo") && d.tot === 7000) {
-                            d.b = 100000; // Restauramos la base a $100.000
-                            d.tot = 107000; // Total es 100k + 7k de extra
-                            changed = true;
-                        }
-                    });
-                }
-            });
-
-            if (changed) {
-                console.log("Restaurando base salarial del 6 de abril...");
-                set(historialRef, data);
             }
 
             historialData = Array.isArray(data) ? data : Object.values(data);
@@ -1683,15 +1699,15 @@
                 let extraHorasColor = false;
                 let extraEntregasColor = false;
 
-                // Cálculo de horas trabajadas real (si existen timestamps)
-                let diffMins = 0;
-                if (d.finTimestamp && d.inicioTimestamp) {
-                    diffMins = Math.floor((d.finTimestamp - d.inicioTimestamp) / 60000);
+                // Cálculo de horas trabajadas basado en los textos (para ser fiel a lo que el operador ve)
+                let diffMins = obtenerMinutosEntre(dIng, dSal);
+                if (diffMins > 0) {
                     let hrs = Math.floor(diffMins / 60);
                     let mins = diffMins % 60;
                     dHrs = `${hrs}h ${mins}m`;
                 } else if (isCoord || isLid) {
                     dHrs = "8h 30m";
+                    diffMins = 510;
                 }
 
                 let currentSal = d.salario;
@@ -1699,7 +1715,7 @@
                     const m = personalMaestro.find(p => norm(p.nombre) === nameNorm);
                     if (m) currentSal = m.salario;
                 }
-                let dValBase = (currentSal && currentSal.trim() !== "") ? parseInt(currentSal.replace(/\\D/g, "")) : 100000;
+                let dValBase = 143000;
 
                 if (isCoord || isLid) {
                     if (isCoord) cCoord++; else cLid++;
@@ -1750,19 +1766,15 @@
                     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                     cell.border = { top: { style: 'thin', color: { argb: 'FF000000' } }, left: { style: 'thin', color: { argb: 'FF000000' } }, bottom: { style: 'thin', color: { argb: 'FF000000' } }, right: { style: 'thin', color: { argb: 'FF000000' } } };
 
-                    // Amarillo en columnas HORAS (10) y EXTRAS (11) SOLO si >= 9 horas (540 minutos)
-                    if ((colNumber === 10 || colNumber === 11) && d.finTimestamp && d.inicioTimestamp) {
-                        const minsX = Math.floor((d.finTimestamp - d.inicioTimestamp) / 60000);
-                        if (minsX >= 540) {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF99' } };
-                        }
+                    // Amarillo en columnas HORAS (10), EXTRAS (11) y VALOR (13) si tiene extras compensadas
+                    if ((colNumber === 10 || colNumber === 11 || colNumber === 13) && diffMins >= 540) {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF99' } };
                     }
 
-                    // Pintar de verde VALOR (13) si supera $143.000
-                    if (colNumber === 13 && dVal > 143000) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCFFCC' } };
-
-                    // Columna ENTREGAS (12)
-                    if (colNumber === 12 && extraEntregasColor) cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCFFCC' } };
+                    // Pintar de verde VALOR (13) y ENTREGAS (12) si tiene mas de 18 entregas
+                    if ((colNumber === 12 || colNumber === 13) && extraEntregasColor) {
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCFFCC' } };
+                    }
                 });
 
                 row.getCell(13).numFmt = '"$"#,##0';
@@ -2469,6 +2481,80 @@
             });
             container.innerHTML = html || `<p style="text-align:center; padding:20px; color:#888;">No se encontraron registros${filtroMin ? ' para tu búsqueda' : ' para el periodo:<br><b>' + rangeText + '</b>'}</p>`;
         }
+
+        window.repararHistorial = async function() {
+            const res = await confirmarAccion({
+                titulo: "Reparar Historial",
+                texto: "Se recalcularán todos los pagos históricos usando los salarios individuales y la nueva lógica de tiempos. ¿Continuar?",
+                botonSi: "Reparar Todo",
+                color: "var(--warning)",
+                icono: '<i class="fas fa-tools" style="color:var(--warning)"></i>'
+            });
+            if (!res) return;
+
+            const updates = {};
+            const normalize = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+            const coordinadoresNames = ["Cristian Muñoz", "Andres Muñoz", "Nilton Cardona"];
+            const lideresNames = ["Jhon Vega", "Kevin Villada"];
+
+            Object.keys(historialData_raw).forEach(key => {
+                const h = historialData_raw[key];
+                if (!h.detalle) return;
+
+                h.detalle.forEach(d => {
+                    const nameNorm = normalize(d.n);
+                    const isCoord = coordinadoresNames.some(n => normalize(n) === nameNorm);
+                    const isLid = lideresNames.some(n => normalize(n) === nameNorm);
+                    const isIndrive = nameNorm.includes("indrive");
+
+                    // Buscar salario en el maestro
+                    const m = personalMaestro.find(p => normalize(p.nombre) === nameNorm);
+                    let baseDaily = (m && m.salario && m.salario.trim() !== "") ? parseInt(m.salario.replace(/\D/g, "")) : 100000;
+
+                    let valBase = 0;
+                    if (isCoord || isLid) {
+                        valBase = baseDaily;
+                    } else if (!isIndrive && d.ing && d.ing !== "--:--") {
+                        valBase = baseDaily;
+                    }
+
+                    // Calcular mins usando la nueva utilidad
+                    let shiftStart = d.ing;
+                    let shiftEnd = d.fin;
+                    if (isCoord || isLid) {
+                        if (!shiftStart || shiftStart === "--:--") shiftStart = "08:00 AM";
+                        if (!shiftEnd || shiftEnd === "--:--") shiftEnd = "04:30 PM";
+                    }
+
+                    const totalMins = obtenerMinutosEntre(shiftStart, shiftEnd);
+                    let valExtra = 0;
+                    let minsExtra = 0;
+                    if (!isIndrive && totalMins > 510) {
+                        const extraMin = totalMins - 510;
+                        const halfHours = Math.floor(extraMin / 30);
+                        valExtra = halfHours * 7000;
+                        minsExtra = halfHours * 30;
+                    }
+
+                    let valBono = 0;
+                    if (!isCoord && !isLid && d.e > 18) {
+                        valBono = (d.e - 18) * 10000;
+                    }
+
+                    d.b = valBase;
+                    d.ex = valExtra;
+                    d.bo = valBono;
+                    d.tot = valBase + valExtra + valBono;
+                    d.h = totalMins;
+                    d.hx = minsExtra;
+                });
+                updates[key] = h;
+            });
+
+            await set(ref(db, 'historial'), updates);
+            alert("✅ Historial reparado con éxito. Los valores ahora coinciden con los salarios y tiempos reales.");
+            location.reload();
+        };
 
         window.verDetalleSemanal = function (nombre) {
             const rango = obtenerRangoSemanal();
