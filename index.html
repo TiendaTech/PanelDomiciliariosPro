@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel Domiciliarios Pro</title>
+    <title>Domifaster Courier Service</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
 
@@ -176,11 +176,11 @@
 
         .logo-container {
             text-align: center;
-            margin-bottom: 5px;
+            margin-bottom: 15px;
         }
 
         .main-logo {
-            max-width: 120px;
+            max-width: 220px;
             height: auto;
             transition: 0.3s;
         }
@@ -850,7 +850,7 @@
                 <span id="status-text">Desconectado</span>
             </div>
 
-            <h1 id="titulo-panel">Panel Domiciliarios</h1>
+            <h1 id="titulo-panel"></h1>
 
             <div class="header-actions">
                 <button class="btn-dashboard" id="btn-reportes" onclick="abrirModalDashboard()"
@@ -1063,7 +1063,8 @@
         <div class="modal-content" style="max-width: 650px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px">
                 <div style="color: #6c5ce7; font-size: 1.5rem;"><i class="fas fa-file-invoice-dollar"></i></div>
-                <button onclick="repararHistorial()" style="background:#fffafa; color:#d32f2f; border:1px solid #ffebee; padding:5px 10px; border-radius:10px; font-size:0.65rem; font-weight:700; cursor:pointer">
+                <button onclick="repararHistorial()"
+                    style="background:#fffafa; color:#d32f2f; border:1px solid #ffebee; padding:5px 10px; border-radius:10px; font-size:0.65rem; font-weight:700; cursor:pointer">
                     <i class="fas fa-tools"></i> Reparar Historial
                 </button>
             </div>
@@ -1259,7 +1260,7 @@
             let valExtra = 0;
             let minsExtra = 0;
             let totalMins = 0;
-            
+
             if (!isIndrive) {
                 let shiftStart = d.inicioLaboral;
                 let shiftEnd = d.finLaboral;
@@ -2006,10 +2007,10 @@
             if (res) {
                 // Archivar antes de borrar
                 const reporteHoy = {
-                fecha: new Date().toLocaleDateString(),
-                timestamp: getServerNow(),
-                totalEntregas: domiciliarios.reduce((acc, d) => acc + (d.entregasRealizadas || 0), 0),
-                totalTortas: domiciliarios.reduce((acc, d) => acc + (d.tortasPescado || 0), 0),
+                    fecha: new Date().toLocaleDateString(),
+                    timestamp: getServerNow(),
+                    totalEntregas: domiciliarios.reduce((acc, d) => acc + (d.entregasRealizadas || 0), 0),
+                    totalTortas: domiciliarios.reduce((acc, d) => acc + (d.tortasPescado || 0), 0),
                     detalle: domiciliarios.map(d => {
                         const liq = calcularLiquidacion(d);
                         return {
@@ -2498,7 +2499,7 @@
             container.innerHTML = html || `<p style="text-align:center; padding:20px; color:#888;">No se encontraron registros${filtroMin ? ' para tu búsqueda' : ' para el periodo:<br><b>' + rangeText + '</b>'}</p>`;
         }
 
-        window.repararHistorial = async function() {
+        window.repararHistorial = async function () {
             const res = await confirmarAccion({
                 titulo: "Reparar Historial",
                 texto: "Se recalcularán todos los pagos históricos usando los salarios individuales y la nueva lógica de tiempos. ¿Continuar?",
