@@ -613,6 +613,32 @@
             margin-top: 4px;
         }
 
+            margin-top: 4px;
+        }
+
+        /* CONTADORES POR SEDE */
+        .branch-counters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+        .branch-stat {
+            background: #f8f9fa;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            border: 1.5px solid #edf2f4;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #4a5568;
+        }
+        .branch-stat i { font-size: 0.8rem; }
+        .branch-stat.ita b { color: #4f46e5; }
+        .branch-stat.cal b { color: #e11d48; }
+
         /* MODALES */
         .modal-overlay {
             position: fixed;
@@ -775,6 +801,30 @@
             animation: fadeInScale 0.3s forwards;
         }
 
+        /* CONTADORES POR SEDE */
+        .branch-counters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .branch-stat {
+            background: #f8f9fa;
+            padding: 5px 12px;
+            border-radius: 12px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            border: 1.5px solid #edf2f4;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: #4a5568;
+        }
+        .branch-stat i { font-size: 0.8rem; }
+        .branch-stat span { color: var(--dark); }
+        .branch-stat.ita span { color: #4f46e5; }
+        .branch-stat.cal span { color: #e11d48; }
+
         @media (max-width: 768px) {
 
             .header-grid {
@@ -867,6 +917,10 @@
 <body>
 
     <div class="container">
+        <div class="branch-counters">
+            <div class="branch-stat ita"><i class="fas fa-building"></i> Itagüí: <span id="count-itagui">0</span></div>
+            <div class="branch-stat cal"><i class="fas fa-building"></i> Calasanz: <span id="count-calanzans">0</span></div>
+        </div>
         <div class="logo-container">
             <img src="LOGO DOMIFASTER.png" alt="Domifaster Logo" class="main-logo">
         </div>
@@ -2330,13 +2384,15 @@
         window.toggleInactivo = function (id) {
             if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id === id);
-            d.estado = d.estado === "inactivo" ? "activo" : "inactivo";
-            d.rutaStartTimestamp = null;
-            if (d.estado === "activo") {
-                d.turnoTimestamp = getServerNow(); // Al final de la cola 'Libres'
+            if (d.estado === "inactivo") {
+                d.estado = "activo";
+                d.inactivoStartTimestamp = null;
             } else {
-                d.turnoTimestamp = getServerNow(); // Al final de la cola 'Ocupados'
+                d.estado = "inactivo";
+                d.inactivoStartTimestamp = getServerNow();
             }
+            d.rutaStartTimestamp = null;
+            d.turnoTimestamp = getServerNow();
             guardar(d);
         };
 
@@ -2347,6 +2403,7 @@
             const busq = document.getElementById("busqueda").value.toLowerCase();
             let html = ""; let ahora = getServerNow();
             let c = { activo: 0, ruta: 0, almorzando: 0, inactivo: 0, rG: 0, eG: 0, tG: 0 };
+            let sI = 0, sC = 0; // Contadores sedes
 
             // Calcular Ranking (Top 3) - Criterio: Rutas (entregas) y desempate por Tortas
             const ranked = [...domiciliarios]
@@ -2374,6 +2431,13 @@
                 c.eG += (d.entregasRealizadas || 0);
                 c.tG += (d.tortasPescado || 0);
 
+                // Contador por sede (solo para quienes no han finalizado turno)
+                if (d.estado !== "finalizado") { // Asumo que inactivo temporal cuenta, pero verifiquemos
+                    const s = d.sede || (personalMaestro.find(p => norm(p.nombre) === norm(d.nombre)) || {}).sede || "";
+                    if (s.toLowerCase().includes("itagui")) sI++;
+                    if (s.toLowerCase().includes("calanzans")) sC++;
+                }
+
                 if ((d.nombre || "").toLowerCase().includes(busq) && (filtroEstado === 'todos' || d.estado === filtroEstado)) {
                     // Buscar sede en maestro si no está en el registro diario
                     const maestroItem = personalMaestro.find(p => norm(p.nombre) === norm(d.nombre));
@@ -2389,10 +2453,12 @@
                     if (d.estado === "almorzando" && d.finAlmuerzo) {
                         let diff = Math.max(0, Math.floor((d.finAlmuerzo - ahora) / 1000));
                         timer = `<span style="color:var(--danger); font-weight:800; font-size:0.8rem;"><i class="fas fa-utensils"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
-                    }
-                    if (d.estado === "ruta" && d.rutaStartTimestamp) {
+                    } else if (d.estado === "ruta" && d.rutaStartTimestamp) {
                         let diff = Math.max(0, Math.floor((ahora - d.rutaStartTimestamp) / 1000));
                         timer = `<span style="color:var(--warning); font-weight:800; font-size:0.8rem;"><i class="fas fa-stopwatch"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
+                    } else if (d.estado === "inactivo" && d.inactivoStartTimestamp) {
+                        let diff = Math.max(0, Math.floor((ahora - d.inactivoStartTimestamp) / 1000));
+                        timer = `<span style="color:#757575; font-weight:800; font-size:0.8rem;"><i class="fas fa-pause-circle"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
                     }
 
                     // Badge de Ranking
@@ -2457,6 +2523,9 @@
             document.getElementById("cant-inactivo").innerText = c.inactivo;
             document.getElementById("entregas-globales").innerText = c.eG;
             document.getElementById("tortas-globales").innerText = c.tG;
+            
+            document.getElementById("count-itagui").innerText = sI;
+            document.getElementById("count-calanzans").innerText = sC;
         };
 
         window.filtrar = (e) => {
