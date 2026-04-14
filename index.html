@@ -613,31 +613,7 @@
             margin-top: 4px;
         }
 
-            margin-top: 4px;
-        }
 
-        /* CONTADORES POR SEDE */
-        .branch-counters {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
-            flex-wrap: wrap;
-        }
-        .branch-stat {
-            background: #f8f9fa;
-            padding: 5px 12px;
-            border-radius: 12px;
-            font-size: 0.75rem;
-            font-weight: 800;
-            border: 1.5px solid #edf2f4;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            color: #4a5568;
-        }
-        .branch-stat i { font-size: 0.8rem; }
-        .branch-stat.ita b { color: #4f46e5; }
-        .branch-stat.cal b { color: #e11d48; }
 
         /* MODALES */
         .modal-overlay {
@@ -1100,20 +1076,22 @@
                 </div>
             </div>
 
-            <button class="btn-header btn-add" onclick="agregarPersonalMaestro()"
-                style="width: 100%; margin-top: 10px; height: 45px;">
-                <i class="fas fa-plus"></i> Guardar en Base de Datos
-            </button>
+            <div style="display: flex; gap: 5px; margin-top: 10px;">
+                <button class="btn-header btn-add" onclick="agregarPersonalMaestro()"
+                    style="flex: 1; height: 45px;" title="Guardar/Agregar Personal">
+                    <i class="fas fa-plus"></i>
+                </button>
 
-            <button class="btn-header btn-excel" onclick="exportarMaestroExcel()"
-                style="width: 100%; margin-top: 5px; height: 45px;">
-                <i class="fas fa-file-excel"></i> Exportar Base de Datos
-            </button>
+                <button class="btn-header btn-excel" onclick="exportarMaestroExcel()"
+                    style="flex: 1; height: 45px;" title="Exportar Base de Datos">
+                    <i class="fas fa-file-excel"></i>
+                </button>
 
-            <button class="btn-header btn-clear" onclick="borrarTodaLaBaseMaestra()"
-                style="width: 100%; margin-top: 5px; height: 45px; background: #333;">
-                <i class="fas fa-exclamation-triangle"></i> Borrar TODA la Base de Datos
-            </button>
+                <button class="btn-header btn-clear" onclick="borrarTodaLaBaseMaestra()"
+                    style="flex: 1; height: 45px; background: #333;" title="Borrar TODA la Base de Datos">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </button>
+            </div>
 
 
 
@@ -1134,10 +1112,24 @@
 
             <h3 style="margin-top:25px">📋 Historial de Reportes</h3>
 
-            <button class="btn-header btn-excel" onclick="exportarDashboardExcel()"
-                style="width: 100%; margin: 10px 0; height: 45px;">
-                <i class="fas fa-file-excel"></i> Exportar Histórico de Rendimiento
-            </button>
+            <!-- Filtros de Fecha para Exportación -->
+            <div style="display: flex; gap: 10px; margin: 15px 0; text-align: left; align-items: flex-end;">
+                <div class="input-group" style="flex: 1;">
+                    <label>Desde:</label>
+                    <input type="date" id="exportDesde">
+                </div>
+                <div class="input-group" style="flex: 1;">
+                    <label>Hasta:</label>
+                    <input type="date" id="exportHasta">
+                </div>
+                <div class="input-group" style="width: 50px;">
+                    <label style="visibility: hidden;">.</label>
+                    <button class="btn-header btn-excel" onclick="exportarDashboardExcel()"
+                        style="width: 100%; height: 41px; margin: 0; display: flex; align-items: center; justify-content: center; padding: 0;" title="Exportar Rango Seleccionado">
+                        <i class="fas fa-file-excel"></i>
+                    </button>
+                </div>
+            </div>
 
             <div class="personal-list-container" id="listaHistorial" style="max-height: 250px;"></div>
 
@@ -1542,7 +1534,7 @@
                         sede: fields.sede.value
                     };
                 }
-                btnSave.innerHTML = '<i class="fas fa-plus"></i> Guardar en Base de Datos';
+                btnSave.innerHTML = '<i class="fas fa-plus"></i>';
                 btnSave.style.background = 'var(--primary)';
             } else {
                 // Modo Nuevo
@@ -1591,7 +1583,7 @@
 
             editIdMaestro = id;
             const btnSave = document.querySelector('button[onclick="agregarPersonalMaestro()"]');
-            btnSave.innerHTML = '<i class="fas fa-save"></i> Actualizar Cambios';
+            btnSave.innerHTML = '<i class="fas fa-save"></i>';
             btnSave.style.background = 'var(--success)';
 
             // Hacer scroll hasta arriba del modal para ver los campos
@@ -1680,7 +1672,7 @@
                 editIdMaestro = null;
                 const btnSave = document.querySelector('button[onclick="agregarPersonalMaestro()"]');
                 if (btnSave) {
-                    btnSave.innerHTML = '<i class="fas fa-plus"></i> Guardar en Base de Datos';
+                    btnSave.innerHTML = '<i class="fas fa-plus"></i>';
                     btnSave.style.background = 'var(--primary)';
                 }
                 // Limpiar campos
@@ -2009,6 +2001,7 @@
             // --- HOJA RESUMEN ---
             sheetSummary.columns = [
                 { header: 'FECHA', key: 'fecha', width: 20 },
+                { header: 'DOMICILIARIOS', key: 'cantDomi', width: 20 },
                 { header: 'TOTAL ENTREGAS', key: 'totalEntregas', width: 20 },
                 { header: 'TOTAL TORTAS', key: 'totalTortas', width: 20 }
             ];
@@ -2031,10 +2024,21 @@
                 });
             });
 
+            const fechaD = document.getElementById('exportDesde').value;
+            const fechaH = document.getElementById('exportHasta').value;
+            
+            const tD = fechaD ? new Date(fechaD + "T00:00:00").getTime() : 0;
+            const tH = fechaH ? new Date(fechaH + "T23:59:59").getTime() : Infinity;
+
+            const datosFiltrados = historialData.filter(h => h.timestamp >= tD && h.timestamp <= tH);
+            
+            if (datosFiltrados.length === 0) { alert("No hay datos en el rango seleccionado."); return; }
+
             // Llenar datos (de más reciente a más antiguo)
-            [...historialData].sort((a, b) => b.timestamp - a.timestamp).forEach(h => {
+            [...datosFiltrados].sort((a, b) => b.timestamp - a.timestamp).forEach(h => {
                 sheetSummary.addRow({
                     fecha: h.fecha,
+                    cantDomi: h.detalle ? h.detalle.length : 0,
                     totalEntregas: h.totalEntregas,
                     totalTortas: h.totalTortas || 0
                 });
@@ -2299,11 +2303,16 @@
             // Intento obtener el contacto del registro activo, sino del maestro
             let contact = d.contacto;
             if (!contact) {
-                const maestro = personalMaestro.find(p => p.nombre.toLowerCase() === d.nombre.toLowerCase());
+                const maestro = personalMaestro.find(p => norm(p.nombre) === norm(d.nombre));
                 if (maestro) contact = maestro.contacto;
             }
 
             if (!contact) { alert("No hay número de contacto registrado para este domiciliario."); return; }
+
+            // Obtener Sede
+            const maestroItem = personalMaestro.find(p => norm(p.nombre) === norm(d.nombre));
+            const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "");
+            const sedeMsg = sedeLabel ? `*Sede:* ${sedeLabel}\n` : "";
 
             const cleanNum = contact.replace(/\D/g, "");
             const finalNum = cleanNum.length === 10 ? '57' + cleanNum : cleanNum;
@@ -2336,6 +2345,7 @@
                 `*Resumen de Ruta - DomiFaster*\n\n` +
                 `*Fecha:* ${new Date().toLocaleDateString()}\n` +
                 `*Domiciliario:* ${d.nombre}\n` +
+                sedeMsg +
                 `*Ingreso:* ${d.inicioLaboral}\n` +
                 `*Salida:* ${d.finLaboral || '--:--'}\n` +
                 `*Entregas:* ${d.entregasRealizadas}\n` +
