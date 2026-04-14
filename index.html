@@ -276,7 +276,8 @@
         .lista {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 12px;
+            margin-top: 10px;
         }
 
         .item {
@@ -289,6 +290,7 @@
             align-items: center;
             gap: 10px;
             transition: 0.2s;
+            position: relative;
         }
 
         .item:hover {
@@ -410,6 +412,31 @@
             border-radius: 6px;
             white-space: nowrap;
         }
+
+        .sede-badge {
+            position: absolute;
+            top: -9px;
+            left: 20px;
+            font-size: 0.52rem;
+            padding: 2px 8px;
+            border-radius: 5px;
+            font-weight: 800;
+            text-transform: uppercase;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+            border: 1px solid rgba(0,0,0,0.1);
+            line-height: 1.2;
+        }
+        .sede-itagui { 
+            background: #eef2ff; 
+            color: #4f46e5;
+            border-color: #e0e7ff;
+        } 
+        .sede-calanzans { 
+            background: #fff1f2; 
+            color: #e11d48;
+            border-color: #ffe4e6;
+        } 
 
         .activo {
             background: #e3f2fd;
@@ -2351,7 +2378,12 @@
                     // Buscar sede en maestro si no está en el registro diario
                     const maestroItem = personalMaestro.find(p => norm(p.nombre) === norm(d.nombre));
                     const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "");
-                    const sedeTagHTML = sedeLabel ? `<div class="tag" style="background:#f3e5f5; color:#7b1fa2; margin-left:5px">📍 ${sedeLabel}</div>` : '';
+                    
+                    let sedeClass = "";
+                    if (sedeLabel.toLowerCase().includes("itagui")) sedeClass = "sede-itagui";
+                    if (sedeLabel.toLowerCase().includes("calanzans")) sedeClass = "sede-calanzans";
+                    
+                    const sedeTagHTML = sedeLabel ? `<div class="sede-badge ${sedeClass}">📍 ${sedeLabel}</div>` : '';
 
                     let timer = "";
                     if (d.estado === "almorzando" && d.finAlmuerzo) {
@@ -2394,12 +2426,12 @@
 
                     html += `
                         <div class="item">
+                            ${sedeTagHTML}
                             <div class="info-col">
                                 <div class="dom-name">
                                     ${rankBadge}
                                     ${d.nombre} 
                                     <div class="tag ${d.estado}" style="margin-left:5px">${d.estado}</div>
-                                    ${sedeTagHTML}
                                     ${d.yaAlmorzo ? '<span class="tag-done"><i class="fas fa-check"></i> Almorzó</span>' : ''}
                                     ${timer}
                                 </div>
