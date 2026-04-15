@@ -53,8 +53,8 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            gap: 12px;
-            margin: 10px 0 25px 0;
+            gap: 6px;
+            margin: 0 0 12px 0;
             position: relative;
         }
 
@@ -176,7 +176,7 @@
 
         .logo-container {
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 5px;
         }
 
         .main-logo {
@@ -194,7 +194,7 @@
             display: grid;
             grid-template-columns: 2fr repeat(6, auto);
             gap: 8px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             align-items: center;
         }
 
@@ -620,7 +620,7 @@
 
         .search-wrapper {
             position: relative;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
         }
 
         .search-wrapper i {
@@ -643,7 +643,7 @@
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 6px;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
         .filter-card {
@@ -872,11 +872,18 @@
             animation: fadeInScale 0.3s forwards;
         }
 
-        /* CONTADORES POR SEDE */
+        /* BARRA SUPERIOR (RELOJ Y SEDES) */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+            gap: 15px;
+        }
+        
         .branch-counters {
             display: flex;
             gap: 8px;
-            margin-bottom: 12px;
             flex-wrap: wrap;
         }
 
@@ -893,20 +900,87 @@
             color: #4a5568;
         }
 
-        .branch-stat i {
-            font-size: 0.8rem;
+        .live-clock {
+            text-align: right;
+            background: #ffffff;
+            padding: 6px 14px;
+            border-radius: 14px;
+            border: 1.5px solid #edf2f4;
+            min-width: 110px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.02);
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
-        .branch-stat span {
-            color: var(--dark);
+        .clock-content {
+            display: flex;
+            flex-direction: column;
         }
 
-        .branch-stat.ita span {
-            color: #4f46e5;
+        /* BOTONES DE SISTEMA (SUPERVISOR) */
+        .btn-system {
+            background: #2b2d42;
+            color: white;
+            border: none;
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.9rem;
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
         }
 
-        .branch-stat.cal span {
-            color: #e11d48;
+        .btn-system:hover {
+            background: var(--primary);
+            transform: translateY(-2px);
+        }
+
+        .btn-system.btn-logout {
+            background: var(--danger);
+        }
+
+        .clock-time {
+            font-size: 1.1rem;
+            font-weight: 800;
+            color: var(--primary);
+            line-height: 1.1;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .clock-date {
+            font-size: 0.65rem;
+            color: #8d99ae;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        @media (max-width: 500px) {
+            .top-bar {
+                gap: 5px;
+                margin-bottom: 10px;
+                align-items: center;
+            }
+            .branch-stat {
+                padding: 4px 6px;
+                font-size: 0.6rem;
+                gap: 3px;
+            }
+            .live-clock {
+                padding: 4px 8px;
+                min-width: 85px;
+            }
+            .clock-time {
+                font-size: 0.85rem;
+            }
+            .clock-date {
+                font-size: 0.55rem;
+            }
         }
 
         @media (max-width: 768px) {
@@ -1001,9 +1075,23 @@
 <body>
 
     <div class="container">
-        <div class="branch-counters">
-            <div class="branch-stat ita"><i class="fas fa-building"></i> Itagüí: <span id="count-itagui">0</span></div>
-            <div class="branch-stat cal"><i class="fas fa-building"></i> Calasanz: <span id="count-calanzans">0</span>
+        <div class="top-bar">
+            <div class="branch-counters">
+                <div class="branch-stat ita"><i class="fas fa-building"></i> Itagüí: <span id="count-itagui">0</span></div>
+                <div class="branch-stat cal"><i class="fas fa-building"></i> Calasanz: <span id="count-calanzans">0</span></div>
+            </div>
+            
+            <div class="live-clock" id="live-clock">
+                <button class="btn-system" id="btn-acceso-supervisor" onclick="accesoSupervisor()" title="Acceso Supervisor">
+                    <i class="fas fa-lock"></i>
+                </button>
+                <button class="btn-system btn-logout" id="btn-salir-supervisor" onclick="window.location.search=''" title="Volver a Operador" style="display:none;">
+                    <i class="fas fa-sign-out-alt"></i>
+                </button>
+                <div class="clock-content">
+                    <div class="clock-time" id="txt-time">--:--:--</div>
+                    <div class="clock-date" id="txt-date">--------</div>
+                </div>
             </div>
         </div>
         <div class="logo-container">
@@ -1026,14 +1114,6 @@
                 <button class="btn-dashboard" id="btn-semanales" style="background: #6c5ce7; margin-left: 5px;"
                     onclick="abrirModalSemanales()" title="Informes Semanales">
                     <i class="fas fa-calendar-week"></i>
-                </button>
-                <button class="btn-login" id="btn-acceso-supervisor" onclick="accesoSupervisor()"
-                    title="Acceso Supervisor">
-                    <i class="fas fa-lock"></i>
-                </button>
-                <button class="btn-login btn-logout" id="btn-salir-supervisor" onclick="window.location.search=''"
-                    title="Volver a Operador" style="display:none;">
-                    <i class="fas fa-sign-out-alt"></i>
                 </button>
                 <button class="btn-users" id="btn-gestion-personal" onclick="abrirModalPersonal()"
                     title="Gestión de Personal">
@@ -1373,6 +1453,20 @@
         let editIdMaestro = null;
         let filtroEstado = 'todos';
         let renderTimeout = null;
+
+        // --- ACTUALIZACIÓN DE RELOJ EN TIEMPO REAL ---
+        function updateLiveClock() {
+            const ahora = new Date();
+            const timeStr = ahora.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+            const dateStr = ahora.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' });
+            
+            const txtTime = document.getElementById("txt-time");
+            const txtDate = document.getElementById("txt-date");
+            if (txtTime) txtTime.innerText = timeStr;
+            if (txtDate) txtDate.innerText = dateStr;
+        }
+        setInterval(updateLiveClock, 1000);
+        updateLiveClock();
 
         const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         const normalize = norm;
