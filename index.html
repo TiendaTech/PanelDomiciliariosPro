@@ -1600,9 +1600,8 @@
             // -----------------------------------------------------
 
             // Sincronización inteligente: No sobreescribimos si el snapshot es más antiguo que nuestra última escritura local
-            // Para simplicidad en esta arquitectura, comparamos longitudes y IDs para evitar retrocesos visuales
-            const nuevosIds = new Set(tempArray.map(d => d.id));
-            const pendientesLocal = domiciliarios.filter(d => d._pendiente && !nuevosIds.has(d.id));
+            const nuevosIds = new Set(tempArray.map(d => String(d.id)));
+            const pendientesLocal = domiciliarios.filter(d => d._pendiente && !nuevosIds.has(String(d.id)));
             
             domiciliarios = [...tempArray, ...pendientesLocal];
             render();
@@ -2651,7 +2650,10 @@
         };
 
         window.eliminar = async function (id) {
-            let d = domiciliarios.find(x => x.id === id);
+            // Buscamos con == para permitir comparación de string vs number
+            let d = domiciliarios.find(x => x.id == id);
+            if (!d) return;
+
             const res = await confirmarAccion({
                 titulo: "Quitar de Lista",
                 texto: `¿Eliminar a ${d.nombre} definitivamente de la lista de hoy?`,
@@ -2660,9 +2662,14 @@
                 icono: '<i class="fas fa-trash-alt" style="color:var(--danger)"></i>'
             });
             if (res) {
-                domiciliarios = domiciliarios.filter(x => x.id !== id); // Optimismo
+                // Optimismo local
+                domiciliarios = domiciliarios.filter(x => x.id != id);
                 render();
-                set(ref(db, `domiciliarios/${id}`), null);
+                try {
+                    await remove(ref(db, `domiciliarios/${id}`));
+                } catch (error) {
+                    console.error("Error al eliminar de Firebase:", error);
+                }
             }
         };
 
@@ -2759,22 +2766,24 @@
                     // Lógica de visibilidad de botones según rol
                     const isOperator = !isSupervisor;
 
+                    const idStr = String(d.id);
+
                     const discountBtnHTML = isOperator ? `
                         <div class="adj-btns">
-                            <button class="btn-increase" onclick="sumarTodo(${d.id})"><i class="fas fa-plus-circle"></i></button>
-                            <button class="btn-discount" onclick="descontarTodo(${d.id})"><i class="fas fa-minus-circle"></i></button>
+                            <button class="btn-increase" onclick="sumarTodo('${idStr}')"><i class="fas fa-plus-circle"></i></button>
+                            <button class="btn-discount" onclick="descontarTodo('${idStr}')"><i class="fas fa-minus-circle"></i></button>
                         </div>
                     ` : '';
 
                     let actionsHTML = "";
                     if (isOperator) {
                         actionsHTML = `
-                            <button class="btn-act btn-wa" onclick="enviarWhatsApp(${d.id})" title="Enviar resumen WhatsApp"><i class="fab fa-whatsapp"></i></button>
-                            <button class="btn-act" onclick="toggleInactivo(${d.id})" style="color:${d.estado === 'inactivo' ? 'var(--danger)' : '#ccc'}" title="Activar/Desactivar"><i class="fas fa-power-off"></i></button>
-                            <button class="btn-act" onclick="cambiarEstado(${d.id})" style="color:var(--warning)" title="Asignar Ruta / Marcar como Activo"><i class="fas ${d.estado === 'ruta' ? 'fa-check' : 'fa-route'}"></i></button>
-                            <button class="btn-act" onclick="gestionarAlmuerzo(${d.id})" style="color:var(--primary)" title="Enviar/Volver Almuerzo"><i class="fas fa-utensils"></i></button>
-                            <button class="btn-act" onclick="finalizarTurno(${d.id})" style="color:var(--dark)}" title="Finalizar Turno Laboral"><i class="fas fa-sign-out-alt"></i></button>
-                            <button class="btn-act btn-delete" onclick="eliminar(${d.id})" title="Eliminar domiciliario"><i class="fas fa-trash"></i></button>
+                            <button class="btn-act btn-wa" onclick="enviarWhatsApp('${idStr}')" title="Enviar resumen WhatsApp"><i class="fab fa-whatsapp"></i></button>
+                            <button class="btn-act" onclick="toggleInactivo('${idStr}')" style="color:${d.estado === 'inactivo' ? 'var(--danger)' : '#ccc'}" title="Activar/Desactivar"><i class="fas fa-power-off"></i></button>
+                            <button class="btn-act" onclick="cambiarEstado('${idStr}')" style="color:var(--warning)" title="Asignar Ruta / Marcar como Activo"><i class="fas ${d.estado === 'ruta' ? 'fa-check' : 'fa-route'}"></i></button>
+                            <button class="btn-act" onclick="gestionarAlmuerzo('${idStr}')" style="color:var(--primary)" title="Enviar/Volver Almuerzo"><i class="fas fa-utensils"></i></button>
+                            <button class="btn-act" onclick="finalizarTurno('${idStr}')" style="color:var(--dark)}" title="Finalizar Turno Laboral"><i class="fas fa-sign-out-alt"></i></button>
+                            <button class="btn-act btn-delete" onclick="eliminar('${idStr}')" title="Eliminar domiciliario"><i class="fas fa-trash"></i></button>
                         `;
                     }
 
