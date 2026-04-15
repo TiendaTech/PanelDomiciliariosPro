@@ -198,6 +198,93 @@
             align-items: center;
         }
 
+        .search-area {
+            position: relative;
+            grid-column: 1 / 2;
+        }
+
+        .suggestions-box {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+            z-index: 2100;
+            margin-top: 8px;
+            max-height: 280px;
+            overflow-y: auto;
+            display: none;
+            border: 1px solid #edf2f4;
+            animation: fadeInDown 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            scrollbar-width: thin;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .suggestion-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #f8f9fa;
+            transition: 0.2s;
+        }
+
+        .suggestion-item:last-child {
+            border-bottom: none;
+        }
+
+        .suggestion-item:hover,
+        .suggestion-item.selected {
+            background: #eef8fb;
+        }
+
+        .suggestion-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .suggestion-name {
+            font-weight: 700;
+            color: var(--dark);
+            font-size: 0.95rem;
+        }
+
+        .suggestion-meta {
+            font-size: 0.65rem;
+            color: #8d99ae;
+            font-weight: 600;
+            text-transform: uppercase;
+            display: flex;
+            gap: 8px;
+        }
+
+        .suggestion-btn {
+            width: 32px;
+            height: 32px;
+            background: var(--primary);
+            color: white;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
         .header-grid input {
             padding: 12px;
             border-radius: 10px;
@@ -205,6 +292,12 @@
             outline: none;
             width: 100%;
             box-sizing: border-box;
+            transition: 0.3s;
+        }
+
+        .header-grid input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 4px rgba(37, 150, 190, 0.1);
         }
 
         /* Estilo para input deshabilitado */
@@ -422,21 +515,23 @@
             border-radius: 5px;
             font-weight: 800;
             text-transform: uppercase;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             z-index: 10;
-            border: 1px solid rgba(0,0,0,0.1);
+            border: 1px solid rgba(0, 0, 0, 0.1);
             line-height: 1.2;
         }
-        .sede-itagui { 
-            background: #eef2ff; 
+
+        .sede-itagui {
+            background: #eef2ff;
             color: #4f46e5;
             border-color: #e0e7ff;
-        } 
-        .sede-calanzans { 
-            background: #fff1f2; 
+        }
+
+        .sede-calanzans {
+            background: #fff1f2;
             color: #e11d48;
             border-color: #ffe4e6;
-        } 
+        }
 
         .activo {
             background: #e3f2fd;
@@ -784,6 +879,7 @@
             margin-bottom: 12px;
             flex-wrap: wrap;
         }
+
         .branch-stat {
             background: #f8f9fa;
             padding: 5px 12px;
@@ -796,10 +892,22 @@
             gap: 6px;
             color: #4a5568;
         }
-        .branch-stat i { font-size: 0.8rem; }
-        .branch-stat span { color: var(--dark); }
-        .branch-stat.ita span { color: #4f46e5; }
-        .branch-stat.cal span { color: #e11d48; }
+
+        .branch-stat i {
+            font-size: 0.8rem;
+        }
+
+        .branch-stat span {
+            color: var(--dark);
+        }
+
+        .branch-stat.ita span {
+            color: #4f46e5;
+        }
+
+        .branch-stat.cal span {
+            color: #e11d48;
+        }
 
         @media (max-width: 768px) {
 
@@ -895,7 +1003,8 @@
     <div class="container">
         <div class="branch-counters">
             <div class="branch-stat ita"><i class="fas fa-building"></i> Itagüí: <span id="count-itagui">0</span></div>
-            <div class="branch-stat cal"><i class="fas fa-building"></i> Calasanz: <span id="count-calanzans">0</span></div>
+            <div class="branch-stat cal"><i class="fas fa-building"></i> Calasanz: <span id="count-calanzans">0</span>
+            </div>
         </div>
         <div class="logo-container">
             <img src="LOGO DOMIFASTER.png" alt="Domifaster Logo" class="main-logo">
@@ -934,8 +1043,11 @@
         </div>
 
         <div class="header-grid">
-            <input type="text" id="nombreInput" placeholder="Nombre domiciliario..." list="personal-list"
-                oninput="actualizarDatalist(this.value)" onkeydown="if(event.key==='Enter') agregar()">
+            <div class="search-area">
+                <input type="text" id="nombreInput" placeholder="Nombre domiciliario..." autocomplete="off"
+                    oninput="actualizarSugestiones(this.value)" onkeydown="manejarTecladoSugerencias(event)">
+                <div id="suggestions-box" class="suggestions-box"></div>
+            </div>
             <button class="btn-header btn-add" id="btn-agregar" onclick="agregar()"><i class="fas fa-plus"></i></button>
             <div class="mini-stat bg-entregas"><label>Rutas</label><b id="entregas-globales">0</b></div>
             <div class="mini-stat bg-tortas"><label>Tortas</label><b id="tortas-globales">0</b></div>
@@ -944,8 +1056,6 @@
             <button class="btn-header btn-clear" id="btn-borrar-todo" onclick="borrarTodo()"><i
                     class="fas fa-trash-alt"></i></button>
         </div>
-
-        <datalist id="personal-list"></datalist>
 
         <div class="search-wrapper">
             <i class="fas fa-search"></i>
@@ -1064,7 +1174,8 @@
                 </div>
                 <div class="input-group" style="grid-column: span 2;">
                     <label>Sede (Itagui o Calanzans)</label>
-                    <select id="inputSedeMaestro" style="width: 100%; padding: 8px; border-radius: 10px; border: 2px solid #edf2f4; font-size: 1rem; font-weight: 700; outline: none; box-sizing: border-box;">
+                    <select id="inputSedeMaestro"
+                        style="width: 100%; padding: 8px; border-radius: 10px; border: 2px solid #edf2f4; font-size: 1rem; font-weight: 700; outline: none; box-sizing: border-box;">
                         <option value="">Seleccionar sede...</option>
                         <option value="Itagui">Itagui</option>
                         <option value="Calanzans">Calanzans</option>
@@ -1077,13 +1188,13 @@
             </div>
 
             <div style="display: flex; gap: 5px; margin-top: 10px;">
-                <button class="btn-header btn-add" onclick="agregarPersonalMaestro()"
-                    style="flex: 1; height: 45px;" title="Guardar/Agregar Personal">
+                <button class="btn-header btn-add" onclick="agregarPersonalMaestro()" style="flex: 1; height: 45px;"
+                    title="Guardar/Agregar Personal">
                     <i class="fas fa-plus"></i>
                 </button>
 
-                <button class="btn-header btn-excel" onclick="exportarMaestroExcel()"
-                    style="flex: 1; height: 45px;" title="Exportar Base de Datos">
+                <button class="btn-header btn-excel" onclick="exportarMaestroExcel()" style="flex: 1; height: 45px;"
+                    title="Exportar Base de Datos">
                     <i class="fas fa-file-excel"></i>
                 </button>
 
@@ -1125,7 +1236,8 @@
                 <div class="input-group" style="width: 50px;">
                     <label style="visibility: hidden;">.</label>
                     <button class="btn-header btn-excel" onclick="exportarDashboardExcel()"
-                        style="width: 100%; height: 41px; margin: 0; display: flex; align-items: center; justify-content: center; padding: 0;" title="Exportar Rango Seleccionado">
+                        style="width: 100%; height: 41px; margin: 0; display: flex; align-items: center; justify-content: center; padding: 0;"
+                        title="Exportar Rango Seleccionado">
                         <i class="fas fa-file-excel"></i>
                     </button>
                 </div>
@@ -1269,8 +1381,13 @@
         function render() {
             if (renderTimeout) return;
             renderTimeout = setTimeout(() => {
-                renderContent();
-                renderTimeout = null;
+                try {
+                    renderContent();
+                } catch (error) {
+                    console.error("Error crítico en renderizado:", error);
+                } finally {
+                    renderTimeout = null;
+                }
             }, 50); // Máximo 20 renders por segundo
         }
 
@@ -1287,7 +1404,7 @@
             // Si tiene 11 dígitos y empieza por 3 (omisión del 57 pero incluye un extra?), 
             // intentamos corregir si el extra es un prefijo viejo
             if (clean.length === 11 && clean.startsWith("57")) return clean.substring(1); // Casos extraños
-            
+
             return clean;
         }
 
@@ -1299,7 +1416,7 @@
                 return;
             }
             const url = `https://api.whatsapp.com/send?phone=${finalNum}&text=${mensaje}`;
-            
+
             // Usar un enlace temporal para evitar bloqueadores de pop-ups
             const link = document.createElement("a");
             link.href = url;
@@ -1451,13 +1568,14 @@
 
         onValue(domRef, (snapshot) => {
             const data = snapshot.val();
-            // Convertimos el objeto en array si es necesario
-            let tempArray = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+            // Convertimos el objeto en array si es necesario y filtramos elementos nulos (Holes de Firebase)
+            let tempArray = data ? (Array.isArray(data) ? data.filter(item => item !== null) : Object.values(data)) : [];
 
             // --- SISTEMA DE MIGRACIÓN PROFUNDA (EQUIDAD TOTAL) ---
             let needsMigration = false;
             const ahoraGlobal = getServerNow();
             tempArray = tempArray.map((d, index) => {
+                if (!d) return d; // Seguridad extra
                 let changed = false;
                 if (!d.id) {
                     d.id = ahoraGlobal + index;
@@ -1470,12 +1588,12 @@
                 }
                 if (changed) needsMigration = true;
                 return d;
-            });
+            }).filter(item => item !== null);
 
             if (needsMigration) {
                 console.log("Normalizando turnos para cola equitativa...");
                 const updates = {};
-                tempArray.forEach(d => updates[d.id] = d);
+                tempArray.forEach(d => { if (d && d.id) updates[d.id] = d; });
                 set(domRef, updates);
             }
             // -----------------------------------------------------
@@ -1491,11 +1609,13 @@
 
         onValue(maestroRef, (snapshot) => {
             const data = snapshot.val();
-            personalMaestro = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
+            personalMaestro = data ? (Array.isArray(data) ? data.filter(i => i) : Object.values(data)) : [];
             // Reconstruir el mapa para búsquedas instantáneas
             maestroMap.clear();
-            personalMaestro.forEach(p => maestroMap.set(norm(p.nombre), p));
-            render(); 
+            personalMaestro.forEach(p => {
+                if (p && p.nombre) maestroMap.set(norm(p.nombre), p);
+            });
+            render();
         }, (error) => console.error("Error cargando maestro:", error));
 
         let historialData_raw = {};
@@ -1507,22 +1627,99 @@
                 return;
             }
 
-            historialData = Array.isArray(data) ? data : Object.values(data);
+            historialData = (Array.isArray(data) ? data.filter(i => i) : Object.values(data)).filter(i => i);
         }, (error) => console.error("Error cargando historial:", error));
 
-        window.actualizarDatalist = function (filtro = "") {
-            const dl = document.getElementById('personal-list');
-            if (filtro.trim().length === 0) { dl.innerHTML = ""; return; }
+        let currentSuggestIdx = -1;
+
+        window.actualizarSugestiones = function (filtro = "") {
+            const box = document.getElementById('suggestions-box');
+            if (filtro.trim().length === 0) {
+                box.style.display = 'none';
+                return;
+            }
+
+            const filtrados = personalMaestro.filter(p =>
+                norm(p.nombre).includes(norm(filtro))
+            ).slice(0, 8); // Máximo 8 sugerencias
+
+            if (filtrados.length === 0) {
+                box.style.display = 'none';
+                return;
+            }
 
             let html = "";
-            const filtroMin = filtro.toLowerCase();
-            personalMaestro.forEach(p => {
-                if (p.nombre.toLowerCase().includes(filtroMin)) {
-                    html += `<option value="${p.nombre}">`;
+            filtrados.forEach((p, index) => {
+                html += `
+                    <div class="suggestion-item" onclick="seleccionarDomi('${p.nombre.replace("'", "\\'")}')" id="sug-${index}">
+                        <div class="suggestion-info">
+                            <span class="suggestion-name">${p.nombre}</span>
+                            <div class="suggestion-meta">
+                                <span><i class="fas fa-building"></i> ${p.sede || 'Sin sede'}</span>
+                                ${p.placa ? `<span><i class="fas fa-motorcycle"></i> ${p.placa}</span>` : ''}
+                            </div>
+                        </div>
+                        <div class="suggestion-btn"><i class="fas fa-plus"></i></div>
+                    </div>
+                `;
+            });
+
+            box.innerHTML = html;
+            box.style.display = 'block';
+            currentSuggestIdx = -1;
+        };
+
+        window.seleccionarDomi = function (nombre) {
+            const input = document.getElementById('nombreInput');
+            input.value = nombre;
+            document.getElementById('suggestions-box').style.display = 'none';
+            agregar();
+        };
+
+        window.manejarTecladoSugerencias = function (e) {
+            const box = document.getElementById('suggestions-box');
+            const items = box.querySelectorAll('.suggestion-item');
+
+            if (box.style.display === 'block') {
+                if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    currentSuggestIdx = (currentSuggestIdx + 1) % items.length;
+                    actualizarSeleccionVisual(items);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    currentSuggestIdx = (currentSuggestIdx - 1 + items.length) % items.length;
+                    actualizarSeleccionVisual(items);
+                } else if (e.key === 'Enter' && currentSuggestIdx !== -1) {
+                    e.preventDefault();
+                    items[currentSuggestIdx].click();
+                } else if (e.key === 'Escape') {
+                    box.style.display = 'none';
+                }
+            } else if (e.key === 'Enter') {
+                agregar();
+            }
+        };
+
+        function actualizarSeleccionVisual(items) {
+            items.forEach((item, idx) => {
+                if (idx === currentSuggestIdx) {
+                    item.classList.add('selected');
+                    item.scrollIntoView({ block: 'nearest' });
+                } else {
+                    item.classList.remove('selected');
                 }
             });
-            dl.innerHTML = html;
-        };
+        }
+
+        // Cerrar sugerencias al hacer clic fuera
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.search-area')) {
+                document.getElementById('suggestions-box').style.display = 'none';
+            }
+        });
+
+        // Re-mappear la función vieja por compatibilidad si se usa en otros lados
+        window.actualizarDatalist = window.actualizarSugestiones;
 
         async function guardar(d) {
             if (!d || !d.id) return;
@@ -2076,12 +2273,12 @@
 
             const fechaD = document.getElementById('exportDesde').value;
             const fechaH = document.getElementById('exportHasta').value;
-            
+
             const tD = fechaD ? new Date(fechaD + "T00:00:00").getTime() : 0;
             const tH = fechaH ? new Date(fechaH + "T23:59:59").getTime() : Infinity;
 
             const datosFiltrados = historialData.filter(h => h.timestamp >= tD && h.timestamp <= tH);
-            
+
             if (datosFiltrados.length === 0) { alert("No hay datos en el rango seleccionado."); return; }
 
             // Llenar datos (de más reciente a más antiguo)
@@ -2142,7 +2339,7 @@
                 // Optimismo: Agregamos localmente y renderizamos
                 domiciliarios.push(nuevoDomi);
                 render();
-                
+
                 await set(ref(db, `domiciliarios/${nuevoId}`), nuevoDomi);
                 input.value = "";
                 input.focus();
@@ -2408,7 +2605,7 @@
                 insigniaMsg +
                 `\n\n¡Excelente trabajo!`
             );
-            
+
             abrirEnlaceWhatsApp(contact, msg);
         };
 
@@ -2511,11 +2708,11 @@
                 if ((d.nombre || "").toLowerCase().includes(busq) && (filtroEstado === 'todos' || d.estado === filtroEstado)) {
                     const maestroItem = maestroMap.get(norm(d.nombre));
                     const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "");
-                    
+
                     let sedeClass = "";
                     if (sedeLabel.toLowerCase().includes("itagui")) sedeClass = "sede-itagui";
                     if (sedeLabel.toLowerCase().includes("calanzans")) sedeClass = "sede-calanzans";
-                    
+
                     const sedeTagHTML = sedeLabel ? `<div class="sede-badge ${sedeClass}">📍 ${sedeLabel}</div>` : '';
 
                     let timer = "";
@@ -2592,7 +2789,7 @@
             document.getElementById("cant-inactivo").innerText = c.inactivo;
             document.getElementById("entregas-globales").innerText = c.eG;
             document.getElementById("tortas-globales").innerText = c.tG;
-            
+
             document.getElementById("count-itagui").innerText = sI;
             document.getElementById("count-calanzans").innerText = sC;
         };
@@ -2929,7 +3126,7 @@
                     msgDetails +
                     `\n\n_Favor verificar y confirmar. ¡Excelente semana!_`
                 );
-                
+
                 abrirEnlaceWhatsApp(contact, msg);
             };
         };
