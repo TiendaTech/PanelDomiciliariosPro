@@ -1311,7 +1311,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         // --- LÓGICA DE ROLES (MODO SUPERVISOR Y OPERADOR) ---
         const urlParams = new URLSearchParams(window.location.search);
@@ -1568,8 +1568,21 @@
 
         onValue(domRef, (snapshot) => {
             const data = snapshot.val();
-            // Convertimos el objeto en array si es necesario y filtramos elementos nulos (Holes de Firebase)
-            let tempArray = data ? (Array.isArray(data) ? data.filter(item => item !== null) : Object.values(data)) : [];
+            let tempArray = [];
+            
+            if (data) {
+                if (Array.isArray(data)) {
+                    tempArray = data.map((obj, idx) => {
+                        if (!obj) return null;
+                        return { ...obj, id: obj.id !== undefined ? obj.id : idx };
+                    }).filter(Boolean);
+                } else {
+                    tempArray = Object.entries(data).map(([key, obj]) => {
+                        if (!obj) return null;
+                        return { ...obj, id: obj.id !== undefined ? obj.id : key };
+                    }).filter(Boolean);
+                }
+            }
 
             // --- SISTEMA DE MIGRACIÓN PROFUNDA (EQUIDAD TOTAL) ---
             let needsMigration = false;
@@ -2490,7 +2503,7 @@
 
         window.cambiarEstado = async function (id) {
             if (isSupervisor) return;
-            let d = domiciliarios.find(x => x.id === id);
+            let d = domiciliarios.find(x => x.id == id);
             if (d.estado === "activo" || d.estado === "inactivo") {
                 const modal = document.getElementById('modalRuta');
                 const inEnt = document.getElementById('inputEntregas');
@@ -2519,7 +2532,7 @@
 
         window.descontarTodo = async function (id) {
             if (isSupervisor) return;
-            let d = domiciliarios.find(x => x.id === id);
+            let d = domiciliarios.find(x => x.id == id);
             const modal = document.getElementById('modalAjuste');
             const inEnt = document.getElementById('restarEntregas');
             const inTor = document.getElementById('restarTortas');
@@ -2542,7 +2555,7 @@
 
         window.sumarTodo = async function (id) {
             if (isSupervisor) return;
-            let d = domiciliarios.find(x => x.id === id);
+            let d = domiciliarios.find(x => x.id == id);
             const modal = document.getElementById('modalSumar');
             const inEnt = document.getElementById('sumarEntregas');
             const inTor = document.getElementById('sumarTortas');
@@ -2565,7 +2578,7 @@
 
         window.gestionarAlmuerzo = function (id) {
             if (isSupervisor) return;
-            let d = domiciliarios.find(x => x.id === id);
+            let d = domiciliarios.find(x => x.id == id);
             if (d.estado !== "almorzando") {
                 d.estado = "almorzando";
                 d.finAlmuerzo = getServerNow() + TIEMPO_ALMUERZO;
@@ -2582,7 +2595,7 @@
         };
 
         window.enviarWhatsApp = function (id) {
-            const d = domiciliarios.find(x => x.id === id);
+            const d = domiciliarios.find(x => x.id == id);
             if (!d) return;
 
             // Intento obtener el contacto del registro activo, sino del maestro
@@ -2642,7 +2655,7 @@
 
         window.finalizarTurno = async function (id) {
             if (isSupervisor) return;
-            let d = domiciliarios.find(x => x.id === id);
+            let d = domiciliarios.find(x => x.id == id);
             const res = await confirmarAccion({
                 titulo: "Finalizar Turno",
                 texto: `¿Cerrar turno para ${d.nombre}? Ya no aparecerá en las búsquedas de hoy.`,
@@ -2690,7 +2703,7 @@
 
         window.toggleInactivo = function (id) {
             if (isSupervisor) return;
-            let d = domiciliarios.find(x => x.id === id);
+            let d = domiciliarios.find(x => x.id == id);
             if (d.estado === "inactivo") {
                 d.estado = "activo";
                 d.inactivoStartTimestamp = null;
