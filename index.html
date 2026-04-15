@@ -1255,13 +1255,24 @@
 
         let domiciliarios = [];
         let personalMaestro = [];
+        let maestroMap = new Map(); // Para búsquedas rápidas O(1)
         let historialData = [];
         let chartInstance = null;
         let editIdMaestro = null;
         let filtroEstado = 'todos';
-        const TIEMPO_ALMUERZO = 35 * 60 * 1000;
+        let renderTimeout = null;
+
         const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         const normalize = norm;
+
+        // --- SISTEMA DE RENDERIZADO OPTIMIZADO (THROTTLED) ---
+        function render() {
+            if (renderTimeout) return;
+            renderTimeout = setTimeout(() => {
+                renderContent();
+                renderTimeout = null;
+            }, 50); // Máximo 20 renders por segundo
+        }
 
         // --- UTILIDAD PARA FORMATEAR TELÉFONOS COMPATIBLES CON WHATSAPP ---
         function limpiarNumero(num) {
@@ -1481,7 +1492,10 @@
         onValue(maestroRef, (snapshot) => {
             const data = snapshot.val();
             personalMaestro = data ? (Array.isArray(data) ? data : Object.values(data)) : [];
-            render(); // Asegurar que se renderice con los datos del maestro
+            // Reconstruir el mapa para búsquedas instantáneas
+            maestroMap.clear();
+            personalMaestro.forEach(p => maestroMap.set(norm(p.nombre), p));
+            render(); 
         }, (error) => console.error("Error cargando maestro:", error));
 
         let historialData_raw = {};
@@ -2125,7 +2139,10 @@
             };
 
             try {
-                // Mandamos directo a la nube, la UI se actualizará sola cuando Firebase responda
+                // Optimismo: Agregamos localmente y renderizamos
+                domiciliarios.push(nuevoDomi);
+                render();
+                
                 await set(ref(db, `domiciliarios/${nuevoId}`), nuevoDomi);
                 input.value = "";
                 input.focus();
@@ -2265,9 +2282,10 @@
                 d.turnoTimestamp = getServerNow(); // Al final de la cola 'En Ruta'
             } else {
                 d.estado = "activo";
-                d.rutaStartTimestamp = null; // <--- FIN CRONOMETRO RUTA
-                d.turnoTimestamp = getServerNow(); // Pasa al final de la fila al activarse
+                d.rutaStartTimestamp = null;
+                d.turnoTimestamp = getServerNow();
             }
+            render(); // Optimismo
             guardar(d);
         };
 
@@ -2289,6 +2307,7 @@
             if (data) {
                 d.entregasRealizadas = Math.max(0, d.entregasRealizadas - data.e);
                 d.tortasPescado = Math.max(0, d.tortasPescado - data.t);
+                render(); // Optimismo
                 guardar(d);
             }
         };
@@ -2311,6 +2330,7 @@
             if (data) {
                 d.entregasRealizadas += data.e;
                 d.tortasPescado += data.t;
+                render(); // Optimismo
                 guardar(d);
             }
         };
@@ -2322,13 +2342,14 @@
                 d.estado = "almorzando";
                 d.finAlmuerzo = getServerNow() + TIEMPO_ALMUERZO;
                 d.rutaStartTimestamp = null;
-                d.turnoTimestamp = getServerNow(); // Al final de la cola 'Almuerzo'
+                d.turnoTimestamp = getServerNow();
             } else {
                 d.estado = "activo";
                 d.finAlmuerzo = null;
                 d.yaAlmorzo = true;
-                d.turnoTimestamp = getServerNow(); // Pasa al final de la fila al volver del almuerzo
+                d.turnoTimestamp = getServerNow();
             }
+            render(); // Optimismo
             guardar(d);
         };
 
@@ -2407,6 +2428,7 @@
                 d.estado = "inactivo";
                 d.rutaStartTimestamp = null;
                 d.turnoTimestamp = getServerNow(); // Al final de la cola 'Ocupados'
+                render(); // Optimismo
                 guardar(d);
             }
         };
@@ -2421,6 +2443,8 @@
                 icono: '<i class="fas fa-trash-alt" style="color:var(--danger)"></i>'
             });
             if (res) {
+                domiciliarios = domiciliarios.filter(x => x.id !== id); // Optimismo
+                render();
                 set(ref(db, `domiciliarios/${id}`), null);
             }
         };
@@ -2437,13 +2461,15 @@
             }
             d.rutaStartTimestamp = null;
             d.turnoTimestamp = getServerNow();
+            render(); // Optimismo
             guardar(d);
         };
 
 
 
-        window.render = function () {
+        window.renderContent = function () {
             const lista = document.getElementById("lista");
+            if (!lista) return;
             const busq = document.getElementById("busqueda").value.toLowerCase();
             let html = ""; let ahora = getServerNow();
             let c = { activo: 0, ruta: 0, almorzando: 0, inactivo: 0, rG: 0, eG: 0, tG: 0 };
@@ -2483,8 +2509,7 @@
                 }
 
                 if ((d.nombre || "").toLowerCase().includes(busq) && (filtroEstado === 'todos' || d.estado === filtroEstado)) {
-                    // Buscar sede en maestro si no está en el registro diario
-                    const maestroItem = personalMaestro.find(p => norm(p.nombre) === norm(d.nombre));
+                    const maestroItem = maestroMap.get(norm(d.nombre));
                     const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "");
                     
                     let sedeClass = "";
@@ -2496,13 +2521,13 @@
                     let timer = "";
                     if (d.estado === "almorzando" && d.finAlmuerzo) {
                         let diff = Math.max(0, Math.floor((d.finAlmuerzo - ahora) / 1000));
-                        timer = `<span style="color:var(--danger); font-weight:800; font-size:0.8rem;"><i class="fas fa-utensils"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
+                        timer = `<span class="timer-display" data-timer-id="${d.id}" style="color:var(--danger); font-weight:800; font-size:0.8rem;"><i class="fas fa-utensils"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
                     } else if (d.estado === "ruta" && d.rutaStartTimestamp) {
                         let diff = Math.max(0, Math.floor((ahora - d.rutaStartTimestamp) / 1000));
-                        timer = `<span style="color:var(--warning); font-weight:800; font-size:0.8rem;"><i class="fas fa-stopwatch"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
+                        timer = `<span class="timer-display" data-timer-id="${d.id}" style="color:var(--warning); font-weight:800; font-size:0.8rem;"><i class="fas fa-stopwatch"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
                     } else if (d.estado === "inactivo" && d.inactivoStartTimestamp) {
                         let diff = Math.max(0, Math.floor((ahora - d.inactivoStartTimestamp) / 1000));
-                        timer = `<span style="color:#757575; font-weight:800; font-size:0.8rem;"><i class="fas fa-pause-circle"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
+                        timer = `<span class="timer-display" data-timer-id="${d.id}" style="color:#757575; font-weight:800; font-size:0.8rem;"><i class="fas fa-pause-circle"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
                     }
 
                     // Badge de Ranking
@@ -2579,6 +2604,7 @@
             render();
         };
 
+        const TIEMPO_ALMUERZO = 35 * 60 * 1000;
         setInterval(() => {
             let ch = false; let n = getServerNow();
             domiciliarios.forEach(d => {
@@ -2586,12 +2612,31 @@
                     d.estado = "activo";
                     d.finAlmuerzo = null;
                     d.yaAlmorzo = true;
-                    d.turnoTimestamp = Date.now(); // Al final de la cola tras almorzar
+                    d.turnoTimestamp = Date.now();
                     guardar(d);
                     ch = true;
                 }
             });
-            if (!ch) render(); // Solo renderizamos si no hubo cambios (si hubo, el onValue lo hará)
+
+            // Solo actualizamos los DOMs de los cronómetros específicos para no hacer render() de toda la lista
+            document.querySelectorAll('[data-timer-id]').forEach(el => {
+                const id = el.getAttribute('data-timer-id');
+                const d = domiciliarios.find(x => x.id == id);
+                if (!d) return;
+
+                let timerHTML = "";
+                if (d.estado === "almorzando" && d.finAlmuerzo) {
+                    let diff = Math.max(0, Math.floor((d.finAlmuerzo - n) / 1000));
+                    timerHTML = `<i class="fas fa-utensils"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}`;
+                } else if (d.estado === "ruta" && d.rutaStartTimestamp) {
+                    let diff = Math.max(0, Math.floor((n - d.rutaStartTimestamp) / 1000));
+                    timerHTML = `<i class="fas fa-stopwatch"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}`;
+                } else if (d.estado === "inactivo" && d.inactivoStartTimestamp) {
+                    let diff = Math.max(0, Math.floor((n - d.inactivoStartTimestamp) / 1000));
+                    timerHTML = `<i class="fas fa-pause-circle"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}`;
+                }
+                if (el.innerHTML !== timerHTML) el.innerHTML = timerHTML;
+            });
         }, 1000);
 
         // --- LÓGICA DE REPORTES SEMANALES (DOMINGO A SÁBADO) ---
