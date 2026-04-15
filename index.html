@@ -1261,6 +1261,43 @@
         let filtroEstado = 'todos';
         const TIEMPO_ALMUERZO = 35 * 60 * 1000;
         const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+        const normalize = norm;
+
+        // --- UTILIDAD PARA FORMATEAR TELÉFONOS COMPATIBLES CON WHATSAPP ---
+        function limpiarNumero(num) {
+            if (!num) return "";
+            let clean = num.toString().replace(/\D/g, "");
+            // Eliminar ceros a la izquierda (común en algunos números)
+            clean = clean.replace(/^0+/, "");
+            // Si tiene 10 dígitos (formato celular Col), agregar el 57
+            if (clean.length === 10) return "57" + clean;
+            // Si tiene 12 dígitos y empieza por 57, asumimos que está bien
+            if (clean.length === 12 && clean.startsWith("57")) return clean;
+            // Si tiene 11 dígitos y empieza por 3 (omisión del 57 pero incluye un extra?), 
+            // intentamos corregir si el extra es un prefijo viejo
+            if (clean.length === 11 && clean.startsWith("57")) return clean.substring(1); // Casos extraños
+            
+            return clean;
+        }
+
+        // --- FUNCIÓN PARA ABRIR WHATSAPP DE FORMA SEGURA ---
+        function abrirEnlaceWhatsApp(numero, mensaje) {
+            const finalNum = limpiarNumero(numero);
+            if (!finalNum || finalNum.length < 10) {
+                alert("⚠️ El número de teléfono no es válido o está incompleto.");
+                return;
+            }
+            const url = `https://api.whatsapp.com/send?phone=${finalNum}&text=${mensaje}`;
+            
+            // Usar un enlace temporal para evitar bloqueadores de pop-ups
+            const link = document.createElement("a");
+            link.href = url;
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
 
         // --- UTILIDAD PARA CÁLCULO DE TIEMPO POR STRINGS (SOLUCIÓN A INCONSISTENCIAS DE DB) ---
         function obtenerMinutosEntre(ingreso, salida) {
@@ -1689,7 +1726,6 @@
             const coordinadoresNames = ["Cristian Muñoz", "Andres Muñoz", "Nilton Cardona"];
             const lideresNames = ["Jhon Vega", "Kevin Villada"];
 
-            const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
             const specificSortOrder = [...coordinadoresNames, ...lideresNames].map(n => norm(n));
 
             const listaParaExportar = [];
@@ -2314,9 +2350,6 @@
             const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "");
             const sedeMsg = sedeLabel ? `*Sede:* ${sedeLabel}\n` : "";
 
-            const cleanNum = contact.replace(/\D/g, "");
-            const finalNum = cleanNum.length === 10 ? '57' + cleanNum : cleanNum;
-
             // Calcular Ranking para incluir insignia en el mensaje
             const ranked = [...domiciliarios]
                 .filter(dom => dom.entregasRealizadas > 0)
@@ -2354,7 +2387,8 @@
                 insigniaMsg +
                 `\n\n¡Excelente trabajo!`
             );
-            window.open(`https://wa.me/${finalNum}?text=${msg}`, '_blank');
+            
+            abrirEnlaceWhatsApp(contact, msg);
         };
 
         window.finalizarTurno = async function (id) {
@@ -2647,7 +2681,6 @@
             if (!res) return;
 
             const updates = {};
-            const normalize = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
             const coordinadoresNames = ["Cristian Muñoz", "Andres Muñoz", "Nilton Cardona"];
             const lideresNames = ["Jhon Vega", "Kevin Villada"];
 
@@ -2819,16 +2852,13 @@
             };
 
             document.getElementById('btnWhatsAppSemanal').onclick = function () {
-                const maestro = personalMaestro.find(p => p.nombre.toLowerCase() === nombre.toLowerCase());
+                const maestro = personalMaestro.find(p => norm(p.nombre) === norm(nombre));
                 let contact = maestro ? maestro.contacto : "";
-                if (!contact) { alert("No hay contacto registrado."); return; }
+                if (!contact) { alert("No hay contacto registrado en la base maestra."); return; }
 
-                const cleanNum = contact.replace(/\D/g, "");
-                const finalNum = cleanNum.length === 10 ? '57' + cleanNum : cleanNum;
-
-                let msgDetails = reportesDomi.reverse().map(r => {
+                let msgDetails = reportesDomi.map(r => {
                     return `• *${r.fecha}:* Entregas: ${r.e || 0} | $${(r.tot || 0).toLocaleString('es-CO')}`;
-                }).join('\n');
+                }).reverse().join('\n');
 
                 const valDed = parseInt(document.getElementById('inputValorDeduccion').value) || 0;
                 const conceptoDed = document.getElementById('inputConceptoDeduccion').value || "Deducción";
@@ -2840,7 +2870,7 @@
                 }
 
                 const msg = window.encodeURIComponent(
-                    `*Informe Semanal - Pez Postre*\n\n` +
+                    `*Informe Semanal - DomiFaster*\n\n` +
                     `*Domi:* ${nombre}\n` +
                     `*Periodo:* ${rango.inicio.toLocaleDateString()} - ${rango.fin.toLocaleDateString()}\n\n` +
                     `*Resumen:* \n` +
@@ -2854,7 +2884,8 @@
                     msgDetails +
                     `\n\n_Favor verificar y confirmar. ¡Excelente semana!_`
                 );
-                window.open(`https://wa.me/${finalNum}?text=${msg}`, '_blank');
+                
+                abrirEnlaceWhatsApp(contact, msg);
             };
         };
 
