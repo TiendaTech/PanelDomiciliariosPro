@@ -1599,9 +1599,21 @@
             }
             // -----------------------------------------------------
 
-            // Sincronización inteligente: No sobreescribimos si el snapshot es más antiguo que nuestra última escritura local
+            // Sincronización inteligente: No sobreescribimos si hay escrituras locales en curso
+            const ahoraSync = Date.now();
             const nuevosIds = new Set(tempArray.map(d => String(d.id)));
-            const pendientesLocal = domiciliarios.filter(d => d._pendiente && !nuevosIds.has(String(d.id)));
+            
+            // Los elementos que ya están en Firebase ya no están "pendientes"
+            domiciliarios.forEach(d => {
+                if (nuevosIds.has(String(d.id))) delete d._pendiente;
+            });
+
+            // Solo mantenemos localmente lo que marcamos como pendiente hace menos de 8 segundos
+            const pendientesLocal = domiciliarios.filter(d => 
+                d._pendiente && 
+                !nuevosIds.has(String(d.id)) && 
+                (ahoraSync - d.id) < 8000
+            );
             
             domiciliarios = [...tempArray, ...pendientesLocal];
             render();
@@ -2662,7 +2674,10 @@
                 icono: '<i class="fas fa-trash-alt" style="color:var(--danger)"></i>'
             });
             if (res) {
-                // Optimismo local
+                // Optimismo local: Eliminamos la marca de pendiente para que no resucite en el sync
+                const domiABorrar = domiciliarios.find(x => x.id == id);
+                if (domiABorrar) domiABorrar._pendiente = false; 
+
                 domiciliarios = domiciliarios.filter(x => x.id != id);
                 render();
                 try {
