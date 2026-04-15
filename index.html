@@ -1594,11 +1594,17 @@
                 console.log("Normalizando turnos para cola equitativa...");
                 const updates = {};
                 tempArray.forEach(d => { if (d && d.id) updates[d.id] = d; });
-                set(domRef, updates);
+                // Usamos update en lugar de set para no borrar ingresos concurrentes
+                update(domRef, updates);
             }
             // -----------------------------------------------------
 
-            domiciliarios = tempArray;
+            // Sincronización inteligente: No sobreescribimos si el snapshot es más antiguo que nuestra última escritura local
+            // Para simplicidad en esta arquitectura, comparamos longitudes y IDs para evitar retrocesos visuales
+            const nuevosIds = new Set(tempArray.map(d => d.id));
+            const pendientesLocal = domiciliarios.filter(d => d._pendiente && !nuevosIds.has(d.id));
+            
+            domiciliarios = [...tempArray, ...pendientesLocal];
             render();
         }, (error) => {
             console.error("Error cargando domiciliarios:", error);
@@ -2311,10 +2317,15 @@
             const nombreTxt = input.value.trim();
             if (!nombreTxt) return;
 
+            // Bloque de seguridad para el botón
+            const btnAdd = document.getElementById('btn-agregar');
+            if (btnAdd) btnAdd.disabled = true;
+
             // Buscar datos en el maestro
             const maestro = personalMaestro.find(p => norm(p.nombre) === norm(nombreTxt));
 
-            const nuevoId = Date.now();
+            // Generación de ID más robusta para evitar colisiones en ráfagas
+            const nuevoId = Date.now() + Math.floor(Math.random() * 1000);
             const nuevoDomi = {
                 id: nuevoId,
                 nombre: nombreTxt,
@@ -2332,7 +2343,8 @@
                 inicioTimestamp: getServerNow(),
                 turnoTimestamp: getServerNow(), // Marcador para la cola de turnos
                 finLaboral: "--:--",
-                rutasRealizadas: 0, entregasRealizadas: 0, tortasPescado: 0, yaAlmorzo: false
+                rutasRealizadas: 0, entregasRealizadas: 0, tortasPescado: 0, yaAlmorzo: false,
+                _pendiente: true // Marca local para evitar desapariciones en sync
             };
 
             try {
@@ -2340,12 +2352,20 @@
                 domiciliarios.push(nuevoDomi);
                 render();
 
-                await set(ref(db, `domiciliarios/${nuevoId}`), nuevoDomi);
                 input.value = "";
-                input.focus();
+                if (document.activeElement === input) {
+                    input.focus();
+                }
+
+                await set(ref(db, `domiciliarios/${nuevoId}`), nuevoDomi);
             } catch (error) {
                 console.error("Error al agregar:", error);
                 alert("⚠️ Error al guardar en la nube: " + error.message);
+                // Si falló, lo quitamos de la lista local
+                domiciliarios = domiciliarios.filter(x => x.id !== nuevoId);
+                render();
+            } finally {
+                if (btnAdd) btnAdd.disabled = false;
             }
         };
 
@@ -2699,19 +2719,21 @@
                 c.tG += (d.tortasPescado || 0);
 
                 // Contador por sede (solo para quienes no han finalizado turno)
-                if (d.estado !== "finalizado") { // Asumo que inactivo temporal cuenta, pero verifiquemos
+                if (d.estado !== "finalizado") { 
                     const s = d.sede || (personalMaestro.find(p => norm(p.nombre) === norm(d.nombre)) || {}).sede || "";
-                    if (s.toLowerCase().includes("itagui")) sI++;
-                    if (s.toLowerCase().includes("calanzans")) sC++;
+                    const sLow = s.toString().toLowerCase();
+                    if (sLow.includes("itagui")) sI++;
+                    if (sLow.includes("calanzans")) sC++;
                 }
 
                 if ((d.nombre || "").toLowerCase().includes(busq) && (filtroEstado === 'todos' || d.estado === filtroEstado)) {
                     const maestroItem = maestroMap.get(norm(d.nombre));
-                    const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "");
+                    const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "") || "";
+                    const sedeLabelLow = sedeLabel.toString().toLowerCase();
 
                     let sedeClass = "";
-                    if (sedeLabel.toLowerCase().includes("itagui")) sedeClass = "sede-itagui";
-                    if (sedeLabel.toLowerCase().includes("calanzans")) sedeClass = "sede-calanzans";
+                    if (sedeLabelLow.includes("itagui")) sedeClass = "sede-itagui";
+                    if (sedeLabelLow.includes("calanzans")) sedeClass = "sede-calanzans";
 
                     const sedeTagHTML = sedeLabel ? `<div class="sede-badge ${sedeClass}">📍 ${sedeLabel}</div>` : '';
 
