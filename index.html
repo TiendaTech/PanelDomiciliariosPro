@@ -1560,11 +1560,13 @@
         const domRef = ref(db, 'domiciliarios');
         const maestroRef = ref(db, 'personal_maestro');
         const historialRef = ref(db, 'historial');
+        const deduccionesRef = ref(db, 'deducciones_semanales');
 
         let domiciliarios = [];
         let personalMaestro = [];
         let maestroMap = new Map(); // Para búsquedas rápidas O(1)
         let historialData = [];
+        let deduccionesSemanales = {};
         let chartInstance = null;
         let editIdMaestro = null;
         let filtroEstado = 'todos';
@@ -1774,6 +1776,10 @@
                 badge.classList.remove('online');
                 text.innerText = "Desconectado";
             }
+        });
+
+        onValue(deduccionesRef, (snap) => {
+            deduccionesSemanales = snap.val() || {};
         });
 
         onValue(domRef, (snapshot) => {
@@ -2722,7 +2728,7 @@
                         }
                     },
                     scales: {
-                        y: { 
+                        y: {
                             beginAtZero: true,
                             grace: '10%' // Espacio extra para las etiquetas
                         }
@@ -2732,7 +2738,7 @@
                             display: true
                         },
                         datalabels: {
-                            backgroundColor: function(context) {
+                            backgroundColor: function (context) {
                                 return context.dataset.borderColor;
                             },
                             borderRadius: 4,
@@ -3297,6 +3303,21 @@
             const fI = rango.inicio.getTime();
             const fF = rango.fin.getTime();
 
+            // Lógica de persistencia de múltiples deducciones (Firebase sincronizado)
+            const weekKey = rango.inicio.toISOString().split('T')[0];
+            const dedKey = `${weekKey}_${norm(nombre)}`;
+            const savedData = deduccionesSemanales[dedKey];
+            
+            let listaDeds = [];
+            if (Array.isArray(savedData)) {
+                listaDeds = savedData;
+            } else if (savedData && savedData.concepto) {
+                // Migración de formato antiguo
+                listaDeds = [{ c: savedData.concepto, v: savedData.valor }];
+            } else {
+                listaDeds = [{ c: "Préstamo", v: 0 }];
+            }
+
             const reportesDomi = [];
             [...historialData].sort((a, b) => b.timestamp - a.timestamp).forEach(h => {
                 if (h.timestamp >= fI && h.timestamp <= fF) {
@@ -3340,7 +3361,7 @@
                         </div>
                     </div>
                 `;
-            }).reverse().join(''); // Invertir para que aparezcan de más antiguo a más nuevo
+            }).reverse().join('');
 
             const hT = Math.floor(totalHours / 60);
             const mT = totalHours % 60;
@@ -3369,18 +3390,15 @@
                 </div>
 
                 <div style="margin-bottom: 15px; padding: 12px; border: 1.5px dashed #6c5ce7; border-radius: 12px; background: #fdfcff;">
-                    <p style="font-weight: 700; font-size: 0.85rem; color: #6c5ce7; margin-bottom: 8px;"><i class="fas fa-minus-circle"></i> Deducción / Préstamo</p>
-                    <div style="display: grid; grid-template-columns: 1.2fr 1fr; gap: 8px;">
-                        <div class="input-group" style="margin-bottom:0">
-                            <label>Concepto</label>
-                            <input type="text" id="inputConceptoDeduccion" value="Préstamo" style="font-size: 0.85rem; padding: 5px; text-align:left; font-weight:400">
-                        </div>
-                        <div class="input-group" style="margin-bottom:0">
-                            <label>Valor</label>
-                            <input type="number" id="inputValorDeduccion" value="0" style="font-size: 0.85rem; padding: 5px;" oninput="window.actualizarTotalNeto()">
-                        </div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:10px; padding-top:8px; border-top:1px solid #eee; font-weight:800; color:var(--danger); font-size:1.1rem">
+                    <p style="font-weight: 700; font-size: 0.85rem; color: #6c5ce7; margin-bottom: 8px;"><i class="fas fa-minus-circle"></i> Deducciones / Préstamos</p>
+                    
+                    <div id="containerDeducciones"></div>
+                    
+                    <button onclick="window.agregarFilaDeduccion()" style="background:#6c5ce7; color:white; border:none; border-radius:8px; padding:6px 12px; font-size:0.75rem; font-weight:600; cursor:pointer; margin-top:5px; display:flex; align-items:center; gap:5px">
+                        <i class="fas fa-plus-circle"></i> Añadir Concepto
+                    </button>
+
+                    <div style="display:flex; justify-content:space-between; margin-top:15px; padding-top:10px; border-top:1.5px solid #eee; font-weight:800; color:var(--danger); font-size:1.1rem">
                         <span>Total Neto:</span> <span id="valTotalNeto">${formatM(totalPay)}</span>
                     </div>
                 </div>
@@ -3391,14 +3409,62 @@
                 </div>
             `;
 
-            document.getElementById('contenidoDetalleSemanal').innerHTML = content;
-            document.getElementById('modalDetalleSemanal').style.display = 'flex';
+            window.renderFilasDeduccion = function() {
+                const container = document.getElementById('containerDeducciones');
+                if (!container) return;
+                container.innerHTML = listaDeds.map((d, index) => `
+                    <div style="display: grid; grid-template-columns: 1.2fr 1fr auto; gap: 8px; margin-bottom: 10px; align-items: flex-end;">
+                        <div class="input-group" style="margin-bottom:0">
+                            ${index === 0 ? '<label>Concepto</label>' : ''}
+                            <input type="text" class="ded-c" value="${d.c}" style="font-size: 0.85rem; padding: 6px; text-align:left; font-weight:400" oninput="window.actualizarTotalNeto()">
+                        </div>
+                        <div class="input-group" style="margin-bottom:0">
+                            ${index === 0 ? '<label>Valor</label>' : ''}
+                            <input type="number" class="ded-v" value="${d.v}" style="font-size: 0.85rem; padding: 6px;" oninput="window.actualizarTotalNeto()">
+                        </div>
+                        <button onclick="window.eliminarFilaDeduccion(${index})" style="background:none; border:none; color:var(--danger); cursor:pointer; padding: 6px 0; font-size:1.1rem;" title="Eliminar concepto"><i class="fas fa-times-circle"></i></button>
+                    </div>
+                `).join('');
+            };
+
+            window.agregarFilaDeduccion = function() {
+                listaDeds.push({ c: "", v: 0 });
+                window.renderFilasDeduccion();
+                window.actualizarTotalNeto();
+            };
+
+            window.eliminarFilaDeduccion = function(idx) {
+                listaDeds.splice(idx, 1);
+                if (listaDeds.length === 0) listaDeds.push({ c: "Préstamo", v: 0 });
+                window.renderFilasDeduccion();
+                window.actualizarTotalNeto();
+            };
 
             window.actualizarTotalNeto = function () {
-                const valDed = parseInt(document.getElementById('inputValorDeduccion').value) || 0;
-                const neto = totalPay - valDed;
+                const rowCs = document.querySelectorAll('.ded-c');
+                const rowVs = document.querySelectorAll('.ded-v');
+                let totalDed = 0;
+                let nuevasDeds = [];
+
+                rowCs.forEach((input, i) => {
+                    const c = input.value;
+                    const v = parseInt(rowVs[i].value) || 0;
+                    totalDed += v;
+                    nuevasDeds.push({ c, v });
+                });
+
+                listaDeds = nuevasDeds;
+                const neto = totalPay - totalDed;
                 document.getElementById('valTotalNeto').innerText = formatM(neto);
+                
+                // Guardar persistente en Firebase
+                set(ref(db, `deducciones_semanales/${dedKey}`), listaDeds);
             };
+
+            document.getElementById('contenidoDetalleSemanal').innerHTML = content;
+            window.renderFilasDeduccion();
+            window.actualizarTotalNeto();
+            document.getElementById('modalDetalleSemanal').style.display = 'flex';
 
             document.getElementById('btnWhatsAppSemanal').onclick = function () {
                 const maestro = personalMaestro.find(p => norm(p.nombre) === norm(nombre));
@@ -3409,13 +3475,13 @@
                     return `• *${r.fecha}:* Entregas: ${r.e || 0} | $${(r.tot || 0).toLocaleString('es-CO')}`;
                 }).reverse().join('\n');
 
-                const valDed = parseInt(document.getElementById('inputValorDeduccion').value) || 0;
-                const conceptoDed = document.getElementById('inputConceptoDeduccion').value || "Deducción";
-                const totalNeto = totalPay - valDed;
+                const totalDed = listaDeds.reduce((acc, d) => acc + (d.v || 0), 0);
+                const totalNeto = totalPay - totalDed;
 
                 let dedMsg = "";
-                if (valDed > 0) {
-                    dedMsg = `\n➖ ${conceptoDed}: -${formatM(valDed)}\n💰 *TOTAL NETO: ${formatM(totalNeto)}*`;
+                if (totalDed > 0) {
+                    dedMsg = listaDeds.filter(d => (d.v || 0) > 0).map(d => `\n➖ ${d.c || 'Deducción'}: -${formatM(d.v)}`).join('');
+                    dedMsg += `\n💰 *TOTAL NETO: ${formatM(totalNeto)}*`;
                 }
 
                 const msg = window.encodeURIComponent(
@@ -3428,7 +3494,7 @@
                     `⚡ Horas Extras: ${hXT}h ${mXT}m\n` +
                     `💵 Sueldo Bruto: ${formatM(totalPay)}` +
                     dedMsg +
-                    (valDed === 0 ? `\n💰 *TOTAL A PAGAR: ${formatM(totalPay)}*` : "") +
+                    (totalDed === 0 ? `\n💰 *TOTAL A PAGAR: ${formatM(totalPay)}*` : "") +
                     `\n\n*Desglose diario:*\n` +
                     msgDetails +
                     `\n\n_Favor verificar y confirmar. ¡Excelente semana!_`
