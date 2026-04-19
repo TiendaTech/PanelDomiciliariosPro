@@ -1593,8 +1593,8 @@
         const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         const normalize = norm;
 
-        // Mapeo de nombres actualizados para mantener vinculación con Base Maestra
-        const aliasMap = {
+        // Mapeo de nombres actualizados (Normalizado para evitar fallos por tildes/eñes)
+        const aliasMapRaw = {
             "andres valencia": "andres",
             "mateo avendaño": "avendaño",
             "camilo mejia": "camilo",
@@ -1603,18 +1603,23 @@
             "freddy tobon": "fredy",
             "freywin lopez": "freywin",
             "yadison murillo": "jadison",
-            "yess suarez": "yessi"
+            "yess suarez": "yessi",
+            "edwin rodriguez": "edwin"
         };
+        const aliasMap = {};
+        Object.entries(aliasMapRaw).forEach(([k, v]) => {
+            aliasMap[norm(k)] = norm(v);
+        });
 
         function buscarEnMaestro(nombre) {
             const n = norm(nombre);
             // Buscar directo
             let m = personalMaestro.find(p => norm(p.nombre) === n);
             if (m) return m;
-            // Buscar por alias (si el nombre actual es el largo y en el maestro está el corto)
+            // Buscar por alias
             const alias = aliasMap[n];
             if (alias) return personalMaestro.find(p => norm(p.nombre) === alias);
-            // Buscar a la inversa (si el nombre actual es el corto y en el maestro está el largo)
+            // Buscar a la inversa
             return personalMaestro.find(p => {
                 const pNorm = norm(p.nombre);
                 return aliasMap[pNorm] === n;
@@ -1896,16 +1901,42 @@
             render();
         }, (error) => console.error("Error cargando maestro:", error));
 
-        let historialData_raw = {};
         onValue(historialRef, (snapshot) => {
             const data = snapshot.val();
-            historialData_raw = data || {};
-            if (!data) {
-                historialData = [];
-                return;
+            let tempArray = [];
+            if (data) {
+                // Preservar llaves (IDs) al convertir a array
+                Object.entries(data).forEach(([key, val]) => {
+                    if (val) tempArray.push({ id: key, ...val });
+                });
             }
+            historialData = tempArray;
 
-            historialData = (Array.isArray(data) ? data.filter(i => i) : Object.values(data)).filter(i => i);
+            // Patch Camilo 12/04/2026 ($50,000)
+            const diaCamilo = "12/4/2026"; // Probar formato sin ceros tmb
+            const diaCamiloAlt = "12/04/2026";
+            const diaFound = historialData.find(h => h.fecha === diaCamilo || h.fecha === diaCamiloAlt);
+            
+            const entryPatch = {
+                n: "Camilo Mejía", e: 0, t: 0, tot: 50000, h: 0, hx: 0, ing: "Manual", fin: "Manual"
+            };
+            
+            if (diaFound) {
+                const yaTiene = diaFound.detalle && diaFound.detalle.find(d => (d.n || "").toLowerCase().includes("camilo"));
+                if (!yaTiene) {
+                    const dLocal = diaFound.detalle || [];
+                    dLocal.push(entryPatch);
+                    update(ref(db, `historial/${diaFound.id}`), { detalle: dLocal });
+                }
+            } else {
+                // Crear el día si no existe (utilizando el timestamp de domingo 12 abril)
+                const ts = new Date(2026, 3, 12, 12, 0, 0).getTime();
+                set(ref(db, `historial/${ts}`), {
+                    fecha: diaCamilo,
+                    timestamp: ts,
+                    detalle: [entryPatch]
+                });
+            }
         }, (error) => console.error("Error cargando historial:", error));
 
         let currentSuggestIdx = -1;
