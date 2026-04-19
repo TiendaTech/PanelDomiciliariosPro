@@ -3379,7 +3379,7 @@
                         }
                     });
 
-                    const maestro = personalMaestro.find(p => norm(p.nombre) === norm(nombre));
+                    const maestro = buscarEnMaestro(nombre);
                     const cuenta = maestro && maestro.cuenta ? maestro.cuenta : "--";
                     
                     const weekKey = rango.inicio.toISOString().split('T')[0];
