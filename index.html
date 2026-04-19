@@ -1408,9 +1408,13 @@
                 <!-- Se cargará dinámicamente -->
             </div>
 
-            <div class="modal-btns">
+            <div class="modal-btns" style="display: flex; gap: 8px;">
                 <button class="btn-modal btn-cancel" onclick="cerrarModal('modalSemanales')"
-                    style="width: 100%; background: #eee;">Cerrar</button>
+                    style="flex: 1; background: #eee;">Cerrar</button>
+                <button class="btn-modal" onclick="exportarLiquidacionesSemanalesExcel()"
+                    style="flex: 1; background: var(--excel-color); color: white;">
+                    <i class="fas fa-file-excel"></i> Exportar Todo
+                </button>
             </div>
         </div>
     </div>
@@ -1588,6 +1592,34 @@
 
         const norm = (s) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
         const normalize = norm;
+
+        // Mapeo de nombres actualizados para mantener vinculación con Base Maestra
+        const aliasMap = {
+            "andres valencia": "andres",
+            "mateo avendaño": "avendaño",
+            "camilo mejia": "camilo",
+            "daniel jaramillo": "daniel",
+            "darwin urdaneta": "darwin",
+            "freddy tobon": "fredy",
+            "freywin lopez": "freywin",
+            "yadison murillo": "jadison",
+            "yess suarez": "yessi"
+        };
+
+        function buscarEnMaestro(nombre) {
+            const n = norm(nombre);
+            // Buscar directo
+            let m = personalMaestro.find(p => norm(p.nombre) === n);
+            if (m) return m;
+            // Buscar por alias (si el nombre actual es el largo y en el maestro está el corto)
+            const alias = aliasMap[n];
+            if (alias) return personalMaestro.find(p => norm(p.nombre) === alias);
+            // Buscar a la inversa (si el nombre actual es el corto y en el maestro está el largo)
+            return personalMaestro.find(p => {
+                const pNorm = norm(p.nombre);
+                return aliasMap[pNorm] === n;
+            });
+        }
 
         // --- SISTEMA DE RENDERIZADO OPTIMIZADO (THROTTLED) ---
         function render() {
@@ -2562,7 +2594,7 @@
             if (btnAdd) btnAdd.disabled = true;
 
             // Buscar datos en el maestro
-            const maestro = personalMaestro.find(p => norm(p.nombre) === norm(nombreTxt));
+            const maestro = buscarEnMaestro(nombreTxt);
 
             // Generación de ID más robusta para evitar colisiones en ráfagas
             const nuevoId = Date.now() + Math.floor(Math.random() * 1000);
@@ -2855,14 +2887,14 @@
             // Intento obtener el contacto del registro activo, sino del maestro
             let contact = d.contacto;
             if (!contact) {
-                const maestro = personalMaestro.find(p => norm(p.nombre) === norm(d.nombre));
+                const maestro = buscarEnMaestro(d.nombre);
                 if (maestro) contact = maestro.contacto;
             }
 
             if (!contact) { alert("No hay número de contacto registrado para este domiciliario."); return; }
 
             // Obtener Sede
-            const maestroItem = personalMaestro.find(p => norm(p.nombre) === norm(d.nombre));
+            const maestroItem = buscarEnMaestro(d.nombre);
             const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "");
             const sedeMsg = sedeLabel ? `*Sede:* ${sedeLabel}\n` : "";
 
@@ -3016,7 +3048,7 @@
                 }
 
                 if ((d.nombre || "").toLowerCase().includes(busq) && (filtroEstado === 'todos' || d.estado === filtroEstado)) {
-                    const maestroItem = maestroMap.get(norm(d.nombre));
+                    const maestroItem = buscarEnMaestro(d.nombre);
                     const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "") || "";
                     const sedeLabelLow = sedeLabel.toString().toLowerCase();
 
@@ -3298,6 +3330,108 @@
             location.reload();
         };
 
+        window.exportarLiquidacionesSemanalesExcel = async function () {
+            if (historialData.length === 0) { alert("No hay datos históricos para exportar."); return; }
+            
+            const rango = obtenerRangoSemanal();
+            const fI = rango.inicio.getTime();
+            const fF = rango.fin.getTime();
+            
+            const nombresSet = new Set();
+            historialData.forEach(h => {
+                if (h.timestamp >= fI && h.timestamp <= fF) {
+                    h.detalle.forEach(d => nombresSet.add(d.n));
+                }
+            });
+
+            if (nombresSet.size === 0) { alert("No hay datos en la semana seleccionada para exportar."); return; }
+
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Liquidaciones Semanales');
+
+            worksheet.columns = [
+                { header: 'DOMICILIARIO', key: 'nombre', width: 35 },
+                { header: 'NÚMERO DE CUENTA', key: 'cuenta', width: 35 },
+                { header: 'SUELDO BRUTO', key: 'bruto', width: 15 },
+                { header: 'DEDUCCIONES', key: 'deducciones', width: 15 },
+                { header: 'TOTAL NETO', key: 'neto', width: 15 },
+                { header: 'PERIODO', key: 'periodo', width: 35 }
+            ];
+
+            // Formato Headers
+            worksheet.getRow(1).eachCell(c => {
+                c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6C5CE7' } };
+                c.alignment = { horizontal: 'center' };
+            });
+
+            const periodoStr = `${rango.inicio.toLocaleDateString()} al ${rango.fin.toLocaleDateString()}`;
+
+            [...nombresSet]
+                .filter(nombre => !nombre.toLowerCase().includes('indrive'))
+                .sort()
+                .forEach(nombre => {
+                    let bruto = 0;
+                    historialData.forEach(h => {
+                        if (h.timestamp >= fI && h.timestamp <= fF) {
+                            const d = h.detalle.find(det => det.n === nombre);
+                            if (d) bruto += (d.tot || 0);
+                        }
+                    });
+
+                    const maestro = personalMaestro.find(p => norm(p.nombre) === norm(nombre));
+                    const cuenta = maestro && maestro.cuenta ? maestro.cuenta : "--";
+                    
+                    const weekKey = rango.inicio.toISOString().split('T')[0];
+                    const dedKey = `${weekKey}_${norm(nombre)}`;
+                    const listaDeds = deduccionesSemanales[dedKey];
+                    
+                    let totalDed = 0;
+                    if (Array.isArray(listaDeds)) {
+                        totalDed = listaDeds.reduce((acc, d) => acc + (d.v || 0), 0);
+                    } else if (listaDeds && listaDeds.valor) {
+                        totalDed = listaDeds.valor;
+                    }
+
+                    worksheet.addRow({
+                        nombre: nombre,
+                        cuenta: cuenta,
+                        bruto: bruto,
+                        deducciones: totalDed,
+                        neto: bruto - totalDed,
+                        periodo: periodoStr
+                    });
+                });
+
+            // Formato de moneda, alineación, bordes y colores
+            worksheet.eachRow((row, rowNumber) => {
+                if (rowNumber > 1) {
+                    row.getCell(3).numFmt = '"$"#,##0';
+                    row.getCell(4).numFmt = '"$"#,##0';
+                    row.getCell(5).numFmt = '"$"#,##0';
+                    
+                    // Pintar Total Neto (Columna 5) de verde claro
+                    row.getCell(5).fill = {
+                        type: 'pattern',
+                        pattern: 'solid',
+                        fgColor: { argb: 'FFCCFFCC' }
+                    };
+                }
+                row.eachCell(cell => {
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.border = {
+                        top: { style: 'thin' },
+                        left: { style: 'thin' },
+                        bottom: { style: 'thin' },
+                        right: { style: 'thin' }
+                    };
+                });
+            });
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            saveAs(new Blob([buffer]), `Liquidaciones_Semanales_${periodoStr.replace(/\//g, '-')}.xlsx`);
+        };
+
         window.verDetalleSemanal = function (nombre) {
             const rango = obtenerRangoSemanal();
             const fI = rango.inicio.getTime();
@@ -3467,8 +3601,9 @@
             document.getElementById('modalDetalleSemanal').style.display = 'flex';
 
             document.getElementById('btnWhatsAppSemanal').onclick = function () {
-                const maestro = personalMaestro.find(p => norm(p.nombre) === norm(nombre));
+                const maestro = buscarEnMaestro(nombre);
                 let contact = maestro ? maestro.contacto : "";
+                let cuenta = maestro && maestro.cuenta ? maestro.cuenta : "No registrada";
                 if (!contact) { alert("No hay contacto registrado en la base maestra."); return; }
 
                 let msgDetails = reportesDomi.map(r => {
@@ -3487,6 +3622,7 @@
                 const msg = window.encodeURIComponent(
                     `*Informe Semanal - DomiFaster*\n\n` +
                     `*Domi:* ${nombre}\n` +
+                    `*Cuenta:* ${cuenta}\n` +
                     `*Periodo:* ${rango.inicio.toLocaleDateString()} - ${rango.fin.toLocaleDateString()}\n\n` +
                     `*Resumen:* \n` +
                     `📦 Entregas Totales: ${totalEntregas}\n` +
@@ -3497,7 +3633,7 @@
                     (totalDed === 0 ? `\n💰 *TOTAL A PAGAR: ${formatM(totalPay)}*` : "") +
                     `\n\n*Desglose diario:*\n` +
                     msgDetails +
-                    `\n\n_Favor verificar y confirmar. ¡Excelente semana!_`
+                    `\n\n_Favor verificar información y el número de cuenta. ¡Excelente semana!_`
                 );
 
                 abrirEnlaceWhatsApp(contact, msg);
