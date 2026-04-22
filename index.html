@@ -2344,9 +2344,11 @@
                 totalMins = obtenerMinutosEntre(shiftStart, shiftEnd);
                 if (totalMins > 510) {
                     const extraMin = totalMins - 510;
-                    const halfHours = Math.floor(extraMin / 30);
-                    valExtra = halfHours * 7000;
-                    minsExtra = halfHours * 30;
+                    const totalHalfHours = Math.floor(extraMin / 30);
+                    const fullHours = Math.floor(totalHalfHours / 2);
+                    const remainingHalfHours = totalHalfHours % 2;
+                    valExtra = (fullHours * 15000) + (remainingHalfHours * 7000);
+                    minsExtra = totalHalfHours * 30;
                 }
             }
 
@@ -2355,6 +2357,7 @@
             const ent = d.entregasRealizadas || 0;
             if (!isCoord && !isLid && ent > 18) {
                 valBono = (ent - 18) * 10000;
+                valExtra = 0; // No se pagan extras si supera las 18 entregas
             }
 
             return {
@@ -2955,21 +2958,26 @@
                 }
 
                 // Cálculo universal de extras (aplica para todos menos Indrive)
-                if (!isIndrive && d.inicioLaboral !== "--:--") {
-                    // Cálculo por tiempo laborado (> 8.5 horas = 510 min)
+                // Cálculo adicional por volumen de entregas (solo domiciliarios estándar)
+                let tieneBono = false;
+                if (!isCoord && !isLid && dEnt > 18) {
+                    dVal += ((dEnt - 18) * 10000);
+                    extraEntregasColor = true;
+                    tieneBono = true;
+                }
+
+                // Cálculo por tiempo laborado (> 8.5 horas = 510 min)
+                if (!isIndrive && d.inicioLaboral !== "--:--" && !tieneBono) {
                     if (diffMins > 510) {
                         const extraMin = diffMins - 510;
-                        const mediasHorasCumplidas = Math.floor(extraMin / 30);
-                        dVal += (mediasHorasCumplidas * 7000);
+                        const totalHalfHours = Math.floor(extraMin / 30);
+                        const fullHours = Math.floor(totalHalfHours / 2);
+                        const remainingHalfHours = totalHalfHours % 2;
+                        dVal += (fullHours * 15000) + (remainingHalfHours * 7000);
                         extraHorasColor = true;
 
-                        const extraPagadoMin = mediasHorasCumplidas * 30;
+                        const extraPagadoMin = totalHalfHours * 30;
                         dExt = `${Math.floor(extraPagadoMin / 60)}h ${extraPagadoMin % 60}m`;
-                    }
-                    // Cálculo adicional por volumen de entregas (solo domiciliarios estándar)
-                    if (!isCoord && !isLid && dEnt > 18) {
-                        dVal += ((dEnt - 18) * 10000);
-                        extraEntregasColor = true;
                     }
                 }
 
@@ -3975,18 +3983,21 @@
                     }
 
                     const totalMins = obtenerMinutosEntre(shiftStart, shiftEnd);
-                    let valExtra = 0;
-                    let minsExtra = 0;
-                    if (!isIndrive && totalMins > 510) {
-                        const extraMin = totalMins - 510;
-                        const halfHours = Math.floor(extraMin / 30);
-                        valExtra = halfHours * 7000;
-                        minsExtra = halfHours * 30;
-                    }
 
                     let valBono = 0;
                     if (!isCoord && !isLid && d.e > 18) {
                         valBono = (d.e - 18) * 10000;
+                    }
+
+                    let valExtra = 0;
+                    let minsExtra = 0;
+                    if (!isIndrive && totalMins > 510 && valBono === 0) {
+                        const extraMin = totalMins - 510;
+                        const totalHalfHours = Math.floor(extraMin / 30);
+                        const fullHours = Math.floor(totalHalfHours / 2);
+                        const remainingHalfHours = totalHalfHours % 2;
+                        valExtra = (fullHours * 15000) + (remainingHalfHours * 7000);
+                        minsExtra = totalHalfHours * 30;
                     }
 
                     d.b = valBase;
