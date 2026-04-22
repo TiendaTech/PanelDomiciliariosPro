@@ -40,6 +40,7 @@
             padding: 15px;
             border-radius: 20px;
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            position: relative;
         }
 
         h1 {
@@ -553,7 +554,7 @@
             border-color: #e0e7ff;
         }
 
-        .sede-calanzans {
+        .sede-calazans {
             background: #fff1f2;
             color: #e11d48;
             border-color: #ffe4e6;
@@ -982,6 +983,59 @@
             transform: translateY(-2px);
         }
 
+        /* DISEÑO MEJORADO SELECTOR DE ROLES */
+        .role-selector {
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 12px;
+            display: flex;
+            gap: 4px;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e1e8ed;
+        }
+
+        .btn-system-role {
+            background: transparent;
+            color: #64748b;
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            box-shadow: none;
+            outline: none;
+        }
+
+        .btn-system-role:hover {
+            background: #e2e8f0;
+            color: #1e293b;
+        }
+
+        .btn-system-role.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.15);
+            border: 2.5px solid var(--primary);
+            transform: scale(1.1);
+        }
+
+        .btn-system-role.active.role-admin {
+            color: #ef4444;
+            border-color: #ef4444;
+            background: #fff5f5;
+        }
+
+        .btn-system-role.active.role-supervisor {
+            color: #3b82f6;
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+
         .btn-system.btn-logout {
             background: var(--danger);
         }
@@ -1016,8 +1070,14 @@
             }
 
             .live-clock {
-                padding: 4px 8px;
-                min-width: 85px;
+                padding: 6px 14px;
+                min-width: 100px;
+                justify-content: center;
+            }
+
+            .clock-content {
+                align-items: center;
+                text-align: center;
             }
 
             .clock-time {
@@ -1115,29 +1175,252 @@
                 max-width: 95% !important;
             }
         }
+
+        .branch-counters {
+            display: flex;
+            gap: 8px;
+        }
+
+        .branch-stat {
+            background: #fff;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid #e1e8ed;
+            color: #8d99ae;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
+            -webkit-user-select: none;
+            user-select: none;
+        }
+
+        .branch-stat.active.ita {
+            background: #6c5ce7;
+            color: white;
+            border-color: #5b4cc4;
+            box-shadow: 0 4px 10px rgba(108, 92, 231, 0.2);
+        }
+
+        .branch-stat.active.cal {
+            background: #00b894;
+            color: white;
+            border-color: #00a383;
+            box-shadow: 0 4px 10px rgba(0, 184, 148, 0.2);
+        }
+
+        .branch-stat.active.all {
+            background: #2d3436;
+            color: white;
+            border-color: #1e272e;
+            box-shadow: 0 4px 10px rgba(45, 52, 54, 0.2);
+        }
+
+        /* --- ETIQUETA SEDE ACTUAL --- */
+        .sede-activa-badge {
+            display: none;
+            position: absolute;
+            top: 6px;
+            left: 20px;
+            background: #f8f9fa;
+            padding: 4px 12px;
+            border-radius: 10px;
+            border: 1.5px solid #edf2f4;
+            font-weight: 800;
+            font-size: 0.7rem;
+            z-index: 100;
+            align-items: center;
+            gap: 6px;
+            color: var(--dark);
+            animation: fadeIn 0.3s ease-out;
+            text-transform: uppercase;
+        }
+
+        .sede-activa-badge i {
+            color: var(--primary);
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* --- MODO CALLCENTER REFINADO --- */
+        #callcenter-view {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: #f8f9fa;
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-main);
+            text-align: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .cc-card {
+            background: white;
+            padding: 40px;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.05);
+            max-width: 500px;
+            width: 90%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            border: 1.5px solid #edf2f4;
+        }
+
+        .cc-header {
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 320px;
+        }
+
+        #callcenter-view .cc-logo {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+
+        #callcenter-view .cc-label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #8d99ae;
+            margin-bottom: 5px;
+        }
+
+        #callcenter-view .cc-value {
+            font-size: clamp(4rem, 12vw, 6rem);
+            font-weight: 800;
+            line-height: 0.9;
+            color: var(--primary);
+            margin: 0;
+        }
+
+        .cc-motivation {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #57606f;
+            font-style: italic;
+            margin-top: 10px;
+            max-width: 85%;
+            line-height: 1.2;
+        }
+
+        .cc-footer {
+            margin-top: 15px;
+            border-top: 1px solid #f1f3f5;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        #callcenter-view .cc-clock {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #adb5bd;
+            display: flex;
+            gap: 12px;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .cc-mini-logo {
+            align-self: flex-end;
+            margin-top: -5px;
+            max-width: 75px;
+            height: auto;
+            opacity: 1;
+        }
+
+        @media (max-width: 600px) {
+            .cc-card {
+                padding: 30px 20px;
+            }
+
+            #callcenter-view .cc-logo {
+                max-width: 140px;
+            }
+        }
     </style>
 </head>
 
 <body>
 
-    <div class="container">
+    <div id="callcenter-view">
+        <div class="cc-card">
+            <div class="cc-header">
+                <img src="LOGO PEZ POSTRE.png" class="cc-logo" alt="Logo Pez Postre">
+            </div>
+
+            <div class="cc-label">Tortas Globales</div>
+            <div class="cc-value" id="cc-tortas-total">0</div>
+            <div id="cc-motivation" class="cc-motivation"></div>
+
+            <div class="cc-footer">
+                <div class="cc-clock">
+                    <div id="cc-date">--------</div>
+                    <div id="cc-time">--:--:--</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container" id="main-container">
+        <div id="sede-activa-badge" class="sede-activa-badge">
+            <i class="fas fa-store"></i> <span id="nombre-sede-texto">SEDE</span>
+        </div>
         <div class="top-bar">
             <div class="branch-counters">
-                <div class="branch-stat ita"><i class="fas fa-building"></i> Itagüí: <span id="count-itagui">0</span>
+                <div class="branch-stat ita" id="btn-sede-itagui" onclick="window.cambiarVistaSede('Itagui')">
+                    <i class="fas fa-store"></i> Itagüí: <span id="count-itagui">0</span>
                 </div>
-                <div class="branch-stat cal"><i class="fas fa-building"></i> Calasanz: <span
-                        id="count-calanzans">0</span></div>
+                <div class="branch-stat cal" id="btn-sede-calazans" onclick="window.cambiarVistaSede('Calazans')">
+                    <i class="fas fa-store-alt"></i> Calasanz: <span id="count-calazans">0</span>
+                </div>
+                <div class="branch-stat all" id="btn-sede-todas" onclick="window.cambiarVistaSede('Todas')">
+                    <i class="fas fa-globe"></i> Global
+                </div>
             </div>
 
             <div class="live-clock" id="live-clock">
-                <button class="btn-system" id="btn-acceso-supervisor" onclick="accesoSupervisor()"
-                    title="Acceso Supervisor">
-                    <i class="fas fa-lock"></i>
-                </button>
-                <button class="btn-system btn-logout" id="btn-salir-supervisor" onclick="window.location.search=''"
-                    title="Volver a Operador" style="display:none;">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
+                <div class="role-selector" style="margin-right: 12px;">
+                    <button class="btn-system-role" id="btn-role-operador" onclick="cambiarRol('operador')"
+                        title="Modo Operador">
+                        <i class="fas fa-user"></i>
+                    </button>
+                    <button class="btn-system-role" id="btn-role-supervisor" onclick="cambiarRol('supervisor')"
+                        title="Modo Supervisor">
+                        <i class="fas fa-user-shield"></i>
+                    </button>
+                    <button class="btn-system-role" id="btn-role-admin" onclick="cambiarRol('admin')"
+                        title="Modo Admin">
+                        <i class="fas fa-user-cog"></i>
+                    </button>
+                </div>
                 <div class="clock-content">
                     <div class="clock-time" id="txt-time">--:--:--</div>
                     <div class="clock-date" id="txt-date">--------</div>
@@ -1306,12 +1589,12 @@
                     <input type="text" id="inputARLMaestro" placeholder="Nombre ARL">
                 </div>
                 <div class="input-group" style="grid-column: span 2;">
-                    <label>Sede (Itagui o Calanzans)</label>
+                    <label>Sede (Itagui o Calazans)</label>
                     <select id="inputSedeMaestro"
                         style="width: 100%; padding: 8px; border-radius: 10px; border: 2px solid #edf2f4; font-size: 1rem; font-weight: 700; outline: none; box-sizing: border-box;">
                         <option value="">Seleccionar sede...</option>
                         <option value="Itagui">Itagui</option>
-                        <option value="Calanzans">Calanzans</option>
+                        <option value="Calazans">Calazans</option>
                     </select>
                 </div>
                 <div class="input-group" style="grid-column: span 2;">
@@ -1432,6 +1715,31 @@
         </div>
     </div>
 
+    <!-- Modal Selección de Sede para Operador -->
+    <div class="modal-overlay" id="modalSeleccionSede"
+        style="background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); display:none;">
+        <div class="modal-content"
+            style="max-width: 400px; text-align: center; border: none; box-shadow: 0 25px 50px rgba(0,0,0,0.3);">
+            <img src="LOGO DOMIFASTER.png" style="height: 120px; margin-bottom: 20px;">
+            <h2 style="color: var(--dark); margin-bottom: 10px;">¡Bienvenido!</h2>
+            <p style="color: #64748b; font-size: 0.9rem; margin-bottom: 25px;">Por favor, selecciona la sede en la que
+                trabajarás hoy para personalizar tu panel.</p>
+
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                <button onclick="window.seleccionarSedeOperador('Itagui')"
+                    style="background: #6c5ce7; color: white; border: none; height: 55px; border-radius: 15px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.1rem; transition: transform 0.2s;">
+                    <i class="fas fa-store"></i> SEDE ITAGÜÍ
+                </button>
+                <button onclick="window.seleccionarSedeOperador('Calazans')"
+                    style="background: #00b894; color: white; border: none; height: 55px; border-radius: 15px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.1rem; transition: transform 0.2s;">
+                    <i class="fas fa-store-alt"></i> SEDE CALASANZ
+                </button>
+            </div>
+            <p style="margin-top: 20px; font-size: 0.75rem; color: #adb5bd;">Esta selección bloqueará tu panel a la sede
+                elegida.</p>
+        </div>
+    </div>
+
     <!-- MODAL DE CONFIRMACIÓN GENÉRICO -->
     <div class="modal-overlay" id="modalConfirmar" style="z-index: 3000;">
         <div class="modal-content" style="max-width: 350px;">
@@ -1449,12 +1757,12 @@
     <!-- MODAL DE LOGIN SUPERVISOR -->
     <div class="modal-overlay" id="modalLogin" onclick="if(event.target === this) cerrarModal(this.id)">
         <div class="modal-content" style="max-width: 320px;">
-            <div style="color: var(--dark); font-size: 2.5rem; margin-bottom: 15px;">
+            <div style="color: var(--dark); font-size: 2.5rem; margin-bottom: 15px;" id="loginIcon">
                 <i class="fas fa-user-shield"></i>
             </div>
-            <h3 style="margin-bottom: 5px;">Acceso Restringido</h3>
-            <p style="font-size: 0.8rem; color: #8d99ae; margin-bottom: 20px;">Introduce la clave maestra para activar
-                las funciones de administrador.</p>
+            <h3 style="margin-bottom: 5px;" id="loginTitle">Acceso Restringido</h3>
+            <p style="font-size: 0.8rem; color: #8d99ae; margin-bottom: 20px;" id="loginDesc">Introduce la clave para
+                activar las funciones de este nivel.</p>
 
             <div class="input-group">
                 <label>Contraseña</label>
@@ -1468,7 +1776,7 @@
             </div>
 
             <div class="modal-btns" style="margin-top: 20px; display: flex; gap: 10px;">
-                <button class="btn-modal" onclick="cerrarModal('modalLogin')"
+                <button class="btn-modal" onclick="window.cancelarLogin()"
                     style="background: #f1f3f5; color: #333; flex: 1; height: 48px;">Cancelar</button>
                 <button class="btn-modal" onclick="validarAccesoSupervisor()"
                     style="background: var(--primary); color: white; flex: 1; height: 48px;">Aceptar</button>
@@ -1492,39 +1800,78 @@
         };
 
         const urlParams = new URLSearchParams(window.location.search);
-        const mode = urlParams.get('mode');
-        const isSupervisor = mode === 'supervisor';
+        const mode = urlParams.get('mode') || 'operador';
+
+        if (mode === 'callcenter') {
+            document.getElementById('main-container').style.display = 'none';
+            document.getElementById('callcenter-view').style.display = 'flex';
+            document.body.style.background = '#1a1a2e';
+            window.isCallCenter = true;
+
+            // Frases Motivacionales
+            const frases = [
+                "¡Cada entrega cuenta, vamos por más!",
+                "El éxito es la suma de pequeños esfuerzos diarios.",
+                "¡Hoy es un gran día para romper récords!",
+                "Tu compromiso hace la diferencia. ¡Sigamos adelante!",
+                "Calidad y rapidez, nuestra marca personal. ¡Vamos!",
+                "Juntos llegamos más lejos. ¡Vamos por todas!",
+                "La meta está cerca, ¡sigue así!",
+                "¡Haz que hoy valga la pena!",
+                "Energía positiva y muchas entregas. ¡Dale!",
+                "Cada torta entregada es un cliente feliz. ¡Vamos por más!",
+                "No hay límites cuando trabajamos en equipo.",
+                "¡Enfocados en la meta, imparables hoy!",
+                "Pasión por lo que hacemos. ¡Buen turno equipo!",
+                "¡Tu esfuerzo es el motor de Pez Postre!",
+                "Constancia y dedicación: la clave del éxito."
+            ];
+            const hoy = new Date();
+            const index = (hoy.getDate() + hoy.getMonth()) % frases.length;
+            const elMotiv = document.getElementById('cc-motivation');
+            if (elMotiv) elMotiv.innerText = frases[index];
+
+        } else {
+            window.isCallCenter = false;
+        }
+
+        // Verificación de Autenticidad (Seguridad por URL)
+        let authed = (mode === 'operador' || mode === 'callcenter');
+        if (!authed) {
+            authed = sessionStorage.getItem('auth_' + mode) === 'true';
+        }
+
+        // Si no está autenticado, el "modo efectivo" vuelve a ser operador para el renderizado inicial
+        window.modeEfectivo = authed ? mode : 'operador';
+        window.isOperador = window.modeEfectivo === 'operador';
+        window.isSupervisor = (window.modeEfectivo === 'supervisor' || window.modeEfectivo === 'admin');
+        window.isAdmin = window.modeEfectivo === 'admin';
+        window.targetRole = "";
 
         // Aplicar restricciones según el rol
         document.getElementById('titulo-panel').style.display = 'none';
 
-        if (isSupervisor) {
-            document.getElementById('nombreInput').disabled = false;
-            document.getElementById('nombreInput').placeholder = "Nombre domiciliario...";
-            document.getElementById('btn-agregar').style.display = 'flex';
+        window.accesoLogin = function (role) {
+            window.targetRole = role;
+            const icon = document.getElementById('loginIcon');
+            const title = document.getElementById('loginTitle');
+            if (role === 'admin') {
+                icon.innerHTML = '<i class="fas fa-user-cog"></i>';
+                title.innerText = 'Acceso Administrador';
+            } else {
+                icon.innerHTML = '<i class="fas fa-user-shield"></i>';
+                title.innerText = 'Acceso Supervisor';
+            }
 
-            // Mostrar badge en logo
-            document.getElementById('admin-badge-logo').style.display = 'block';
-
-            if (document.getElementById('btn-acceso-supervisor')) document.getElementById('btn-acceso-supervisor').style.display = 'none';
-            if (document.getElementById('btn-salir-supervisor')) document.getElementById('btn-salir-supervisor').style.display = 'flex';
-        } else {
-            // Modo Operador
-            document.getElementById('admin-badge-logo').style.display = 'none';
-
-            // Ocultar funciones administrativas para Operadores
-            if (document.getElementById('btn-reportes')) document.getElementById('btn-reportes').style.display = 'none';
-            if (document.getElementById('btn-semanales')) document.getElementById('btn-semanales').style.display = 'none';
-            if (document.getElementById('btn-gestion-personal')) document.getElementById('btn-gestion-personal').style.display = 'none';
-            if (document.getElementById('btn-exportar-excel')) document.getElementById('btn-exportar-excel').style.display = 'none';
-            if (document.getElementById('btn-borrar-todo')) document.getElementById('btn-borrar-todo').style.display = 'none';
-
-            if (document.getElementById('btn-acceso-supervisor')) document.getElementById('btn-acceso-supervisor').style.display = 'flex';
-            if (document.getElementById('btn-salir-supervisor')) document.getElementById('btn-salir-supervisor').style.display = 'none';
-        }
-
-        window.accesoSupervisor = function () {
             abrirModal('modalLogin');
+
+            // Si el usuario cancela el login forzado (clic fuera), volvemos a operador
+            document.getElementById('modalLogin').onclick = function (e) {
+                if (e.target === this) {
+                    window.cancelarLogin();
+                }
+            };
+
             setTimeout(() => {
                 const input = document.getElementById('passSupervisor');
                 if (input) {
@@ -1534,19 +1881,187 @@
             }, 100);
         };
 
-        window.validarAccesoSupervisor = function () {
-            const pass = document.getElementById('passSupervisor').value;
-            if (pass === "D0m1f45t3r") {
-                window.location.search = "?mode=supervisor";
+        window.cancelarLogin = function () {
+            // Si el modo actual no está autenticado y se cierra el modal, forzar vuelta a operador
+            if (mode !== 'operador' && sessionStorage.getItem('auth_' + mode) !== 'true') {
+                window.location.search = "mode=operador";
             } else {
-                const input = document.getElementById('passSupervisor');
-                input.style.borderColor = 'var(--danger)';
-                input.style.animation = 'shake 0.4s';
-                setTimeout(() => {
-                    input.style.animation = '';
-                }, 400);
+                cerrarModal('modalLogin');
             }
         };
+
+        window.seleccionarSedeOperador = function (sede) {
+            window.sedeSeleccionada = sede;
+            localStorage.setItem('domifaster_sede', sede);
+            sessionStorage.setItem('domifaster_sede_activa', 'true');
+            cerrarModal('modalSeleccionSede');
+            aplicarFiltroSedeUI();
+            render();
+
+            Swal.fire({
+                icon: 'success',
+                title: `Sede ${sede} Activada`,
+                text: 'Tu panel ha sido configurado para esta sede.',
+                timer: 2000,
+                showConfirmButton: false
+            });
+        };
+
+        window.cambiarRol = function (nuevoRol) {
+            if (nuevoRol === 'operador') {
+                window.location.search = `?mode=${nuevoRol}`;
+            } else {
+                window.accesoLogin(nuevoRol);
+            }
+        };
+
+        window.validarAccesoSupervisor = function () {
+            const pass = document.getElementById('passSupervisor').value;
+            let passCorrecta = (window.targetRole === 'admin') ? "Admin$DomiFas" : "Super.DomiFas";
+
+            if (pass === passCorrecta) {
+                sessionStorage.setItem('auth_' + window.targetRole, 'true');
+                window.location.search = `?mode=${window.targetRole}`;
+            } else {
+                const input = document.getElementById('passSupervisor');
+                if (input) {
+                    input.style.borderColor = 'var(--danger)';
+                    input.style.animation = 'shake 0.4s';
+                    setTimeout(() => {
+                        input.style.animation = '';
+                    }, 400);
+                }
+            }
+        };
+
+        function aplicarPermisosUI() {
+            // Si intenta entrar a modo protegido sin auth, forzar login
+            if (mode !== 'operador' && !authed) {
+                window.accesoLogin(mode);
+            }
+
+            // Usamos modeEfectivo para las labels y UI
+            const badgeLogo = document.getElementById('admin-badge-logo');
+            if (badgeLogo) {
+                if (modeEfectivo === 'admin') {
+                    badgeLogo.style.display = 'block';
+                    badgeLogo.innerText = 'ADMIN';
+                    badgeLogo.style.background = '#ef4444';
+                    badgeLogo.style.color = 'white';
+                    badgeLogo.style.borderColor = '#b91c1c';
+                    badgeLogo.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.4)';
+                } else if (modeEfectivo === 'supervisor') {
+                    badgeLogo.style.display = 'block';
+                    badgeLogo.innerText = 'SUPERVISOR';
+                    badgeLogo.style.background = '#3b82f6';
+                    badgeLogo.style.color = 'white';
+                    badgeLogo.style.borderColor = '#1d4ed8';
+                    badgeLogo.style.boxShadow = '0 0 10px rgba(59, 130, 246, 0.4)';
+                } else {
+                    badgeLogo.style.display = 'block';
+                    badgeLogo.innerText = 'OPERADOR';
+                    badgeLogo.style.background = '#64748b';
+                    badgeLogo.style.color = 'white';
+                    badgeLogo.style.borderColor = '#475569';
+                    badgeLogo.style.boxShadow = '0 0 10px rgba(100, 116, 139, 0.4)';
+                }
+            }
+
+            // Gestión de inputs y botones de agregar (A solicitud, Operador también puede agregar)
+            const inputNombre = document.getElementById('nombreInput');
+            const btnAgregar = document.getElementById('btn-agregar');
+            if (inputNombre) {
+                inputNombre.disabled = false;
+                inputNombre.placeholder = "Nombre domiciliario...";
+            }
+            if (btnAgregar) btnAgregar.style.display = 'flex';
+
+            // Ocultar funciones exclusivas de ADMIN
+            const adminOnlyElements = ['btn-reportes', 'btn-semanales', 'btn-gestion-personal', 'btn-exportar-excel', 'btn-borrar-todo'];
+            adminOnlyElements.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.style.display = window.isAdmin ? 'flex' : 'none';
+            });
+
+            // Ocultar el botón general de reportes si no es admin
+            const panelGraficos = document.querySelector('.stats-grid');
+            if (panelGraficos && !window.isAdmin) panelGraficos.style.display = 'none';
+
+            // Gestión de sedes para Operadores
+            const btnSedeTodas = document.getElementById('btn-sede-todas');
+            const branchCounters = document.querySelector('.branch-counters');
+
+            if (window.isOperador) {
+                // El operador no puede ver la sede global ni el selector
+                if (btnSedeTodas) btnSedeTodas.style.display = 'none';
+
+                // Si es operador y no ha elegido sede en esta sesión, pedirla
+                if (!sessionStorage.getItem('domifaster_sede_activa')) {
+                    abrirModal('modalSeleccionSede');
+                }
+
+                // Bloquear el selector para que no pueda cambiar de sede si no es supervisor/admin
+                if (branchCounters) {
+                    branchCounters.style.pointerEvents = 'none';
+                    // Dejar visible solo la sede seleccionada para info
+                    document.querySelectorAll('.branch-stat').forEach(el => {
+                        if (!el.classList.contains('active')) el.style.display = 'none';
+                    });
+                }
+            } else {
+                // Supervisor/Admin ven todo
+                if (btnSedeTodas) btnSedeTodas.style.display = 'flex';
+                if (branchCounters) {
+                    branchCounters.style.pointerEvents = 'auto';
+                    document.querySelectorAll('.branch-stat').forEach(el => el.style.display = 'flex');
+                }
+            }
+
+            // --- ACTUALIZACIÓN VISUAL BOTONES ROL ---
+            document.querySelectorAll('.btn-system-role').forEach(btn => {
+                btn.classList.remove('active', 'role-admin', 'role-supervisor');
+            });
+            const activeBtn = document.getElementById(`btn-role-${window.modeEfectivo}`);
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+                if (window.modeEfectivo === 'admin') activeBtn.classList.add('role-admin');
+                if (window.modeEfectivo === 'supervisor') activeBtn.classList.add('role-supervisor');
+            }
+        }
+
+        aplicarPermisosUI();
+
+        // --- LÓGICA DE SEDES ---
+        window.sedeSeleccionada = localStorage.getItem('domifaster_sede') || 'Todas';
+
+        window.cambiarVistaSede = function (sede) {
+            window.sedeSeleccionada = sede;
+            localStorage.setItem('domifaster_sede', sede);
+            aplicarFiltroSedeUI();
+            render();
+        };
+
+        function aplicarFiltroSedeUI() {
+            document.querySelectorAll('.branch-stat').forEach(el => el.classList.remove('active'));
+            const id = `btn-sede-${window.sedeSeleccionada.toLowerCase()}`;
+            const btn = document.getElementById(id);
+            if (btn) btn.classList.add('active');
+
+            // Actualizar etiqueta de sede actual para operadores
+            const badge = document.getElementById('sede-activa-badge');
+            const texto = document.getElementById('nombre-sede-texto');
+            if (badge && texto) {
+                if (window.isOperador && window.sedeSeleccionada !== 'Todas') {
+                    badge.style.display = 'flex';
+                    texto.innerText = `Sede ${window.sedeSeleccionada}`;
+                } else {
+                    badge.style.display = 'none';
+                }
+            }
+        }
+
+        // Ejecutar inicialmente
+        setTimeout(aplicarFiltroSedeUI, 100);
 
         const firebaseConfig = {
             apiKey: "AIzaSyDQn0bwqT5Y0LmAKqoNUFenR9ZezZnqJfA",
@@ -1586,6 +2101,11 @@
             const txtDate = document.getElementById("txt-date");
             if (txtTime) txtTime.innerText = timeStr;
             if (txtDate) txtDate.innerText = dateStr;
+
+            const ccTime = document.getElementById("cc-time");
+            const ccDate = document.getElementById("cc-date");
+            if (ccTime) ccTime.innerText = timeStr;
+            if (ccDate) ccDate.innerText = dateStr;
         }
         setInterval(updateLiveClock, 1000);
         updateLiveClock();
@@ -1916,11 +2436,11 @@
             const diaCamilo = "12/4/2026"; // Probar formato sin ceros tmb
             const diaCamiloAlt = "12/04/2026";
             const diaFound = historialData.find(h => h.fecha === diaCamilo || h.fecha === diaCamiloAlt);
-            
+
             const entryPatch = {
                 n: "Camilo Mejía", e: 0, t: 0, tot: 50000, h: 0, hx: 0, ing: "Manual", fin: "Manual"
             };
-            
+
             if (diaFound) {
                 const yaTiene = diaFound.detalle && diaFound.detalle.find(d => (d.n || "").toLowerCase().includes("camilo"));
                 if (!yaTiene) {
@@ -2640,7 +3160,7 @@
                 salario: maestro && maestro.salario ? maestro.salario : "",
                 eps: maestro && maestro.eps ? maestro.eps : "",
                 arl: maestro && maestro.arl ? maestro.arl : "",
-                sede: maestro && maestro.sede ? maestro.sede : "",
+                sede: (window.sedeSeleccionada !== 'Todas') ? window.sedeSeleccionada : (maestro && maestro.sede ? maestro.sede : ""),
                 estado: "activo",
                 inicioLaboral: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
                 inicioTimestamp: getServerNow(),
@@ -2819,7 +3339,6 @@
         }
 
         window.cambiarEstado = async function (id) {
-            if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id == id);
             if (d.estado === "activo" || d.estado === "inactivo") {
                 const modal = document.getElementById('modalRuta');
@@ -2848,7 +3367,6 @@
         };
 
         window.descontarTodo = async function (id) {
-            if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id == id);
             const modal = document.getElementById('modalAjuste');
             const inEnt = document.getElementById('restarEntregas');
@@ -2871,7 +3389,6 @@
         };
 
         window.sumarTodo = async function (id) {
-            if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id == id);
             const modal = document.getElementById('modalSumar');
             const inEnt = document.getElementById('sumarEntregas');
@@ -2894,7 +3411,10 @@
         };
 
         window.gestionarAlmuerzo = function (id) {
-            if (isSupervisor) return;
+            if (!isSupervisor) {
+                Swal.fire({ icon: 'error', title: 'Acceso Denegado', text: 'Solo Supervisores y Administradores pueden gestionar almuerzos.' });
+                return;
+            }
             let d = domiciliarios.find(x => x.id == id);
             if (d.estado !== "almorzando") {
                 d.estado = "almorzando";
@@ -2912,6 +3432,10 @@
         };
 
         window.enviarWhatsApp = function (id) {
+            if (!isAdmin) {
+                Swal.fire({ icon: 'error', title: 'Acceso Denegado', text: 'Solo el administrador/programador puede enviar reportes por WhatsApp.' });
+                return;
+            }
             const d = domiciliarios.find(x => x.id == id);
             if (!d) return;
 
@@ -2971,7 +3495,6 @@
         };
 
         window.finalizarTurno = async function (id) {
-            if (isSupervisor) return;
             let d = domiciliarios.find(x => x.id == id);
             const res = await confirmarAccion({
                 titulo: "Finalizar Turno",
@@ -2992,6 +3515,10 @@
         };
 
         window.eliminar = async function (id) {
+            if (!isAdmin) {
+                Swal.fire({ icon: 'error', title: 'Acceso Denegado', text: 'Solo el administrador/programador puede eliminar domiciliarios de la lista.' });
+                return;
+            }
             // Buscamos con == para permitir comparación de string vs number
             let d = domiciliarios.find(x => x.id == id);
             if (!d) return;
@@ -3019,7 +3546,10 @@
         };
 
         window.toggleInactivo = function (id) {
-            if (isSupervisor) return;
+            if (!isSupervisor) {
+                Swal.fire({ icon: 'error', title: 'Acceso Denegado', text: 'Solo Supervisores y Administradores pueden activar/desactivar domiciliarios.' });
+                return;
+            }
             let d = domiciliarios.find(x => x.id == id);
             if (d.estado === "inactivo") {
                 d.estado = "activo";
@@ -3034,18 +3564,76 @@
             guardar(d);
         };
 
+        window.cambiarSede = async function (id) {
+            if (!isSupervisor) return;
+            let d = domiciliarios.find(x => x.id == id);
+            if (!d) return;
+
+            // Lógica de alternancia (Itagui <-> Calazans)
+            const sedeActual = d.sede || "";
+            const nuevaSede = (sedeActual === "Itagui") ? "Calazans" : "Itagui";
+
+            d.sede = nuevaSede;
+
+            // Actualizar registro activo
+            render();
+            await guardar(d);
+
+            // Actualizar en base maestra para que el cambio sea permanente
+            const maestro = buscarEnMaestro(d.nombre);
+            if (maestro) {
+                maestro.sede = nuevaSede;
+                await guardarMaestro(maestro);
+            }
+        };
+
 
 
         window.renderContent = function () {
             const lista = document.getElementById("lista");
             if (!lista) return;
             const busq = document.getElementById("busqueda").value.toLowerCase();
-            let html = ""; let ahora = getServerNow();
+            let html = "";
+            let ahora = getServerNow();
             let c = { activo: 0, ruta: 0, almorzando: 0, inactivo: 0, rG: 0, eG: 0, tG: 0 };
-            let sI = 0, sC = 0; // Contadores sedes
+            let sI = 0,
+                sC = 0;
 
-            // Calcular Ranking (Top 3) - Criterio: Rutas (entregas) y desempate por Tortas
-            const ranked = [...domiciliarios]
+            // Primero calculamos totales reales de sedes sin filtrar la lista
+            let tortasGlobalCC = 0;
+            domiciliarios.forEach((d) => {
+                if (d.estado !== "finalizado") {
+                    const s =
+                        d.sede ||
+                        (personalMaestro.find((p) => norm(p.nombre) === norm(d.nombre)) ||
+                            {}
+                        ).sede ||
+                        "";
+                    const sLow = s.toString().toLowerCase();
+                    const esI = sLow.includes("itagui");
+                    const esC = sLow.includes("calazans") || sLow.includes("calanzans");
+
+                    if (esI) sI++;
+                    if (esC) sC++;
+
+                    // Sumamos tortas para el Call Center (Global de ambas sedes)
+                    if (esI || esC) {
+                        tortasGlobalCC += (d.tortasPescado || 0);
+                    }
+                }
+            });
+
+            // --- FILTRADO DE SEDE ---
+            const filtrados = domiciliarios.filter(d => {
+                const sedeDomi = d.sede || (personalMaestro.find(p => norm(p.nombre) === norm(d.nombre)) || {}).sede || "";
+                const sedeDomiLow = sedeDomi.toString().toLowerCase();
+                return (window.sedeSeleccionada === "Todas") ||
+                    (window.sedeSeleccionada === "Itagui" && sedeDomiLow.includes("itagui")) ||
+                    (window.sedeSeleccionada === "Calazans" && (sedeDomiLow.includes("calazans") || sedeDomiLow.includes("calanzans")));
+            });
+
+            // Ranking (solo para la sede filtrada)
+            const ranked = [...filtrados]
                 .filter(d => d.entregasRealizadas > 0)
                 .sort((a, b) => {
                     if (b.entregasRealizadas !== a.entregasRealizadas) {
@@ -3053,41 +3641,35 @@
                     }
                     return (b.tortasPescado || 0) - (a.tortasPescado || 0);
                 });
-
             const top3Ids = ranked.slice(0, 3).map(d => d.id);
 
-            // --- ORDENACIÓN POR TURNO (FILA INDIA) ---
-            // Los que tienen turnoTimestamp menor (más viejo) aparecen arriba (primero en la fila)
-            // Los que tienen turnoTimestamp mayor (más reciente) aparecen abajo (último en la fila)
-            const ordenados = [...domiciliarios].sort((a, b) => {
+            // Ordenación
+            const ordenados = [...filtrados].sort((a, b) => {
                 const ta = a.turnoTimestamp || 0;
                 const tb = b.turnoTimestamp || 0;
                 return ta - tb;
             });
 
-            ordenados.forEach(d => {
+            ordenados.forEach((d) => {
                 if (d.estado && c[d.estado] !== undefined) c[d.estado]++;
-                c.eG += (d.entregasRealizadas || 0);
-                c.tG += (d.tortasPescado || 0);
+                c.eG += d.entregasRealizadas || 0;
+                c.tG += d.tortasPescado || 0;
 
-                // Contador por sede (solo para quienes no han finalizado turno)
-                if (d.estado !== "finalizado") {
-                    const s = d.sede || (personalMaestro.find(p => norm(p.nombre) === norm(d.nombre)) || {}).sede || "";
-                    const sLow = s.toString().toLowerCase();
-                    if (sLow.includes("itagui")) sI++;
-                    if (sLow.includes("calanzans")) sC++;
-                }
-
-                if ((d.nombre || "").toLowerCase().includes(busq) && (filtroEstado === 'todos' || d.estado === filtroEstado)) {
+                if (
+                    (d.nombre || "").toLowerCase().includes(busq) &&
+                    (filtroEstado === "todos" || d.estado === filtroEstado)
+                ) {
+                    const idStr = String(d.id);
                     const maestroItem = buscarEnMaestro(d.nombre);
                     const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "") || "";
                     const sedeLabelLow = sedeLabel.toString().toLowerCase();
 
                     let sedeClass = "";
                     if (sedeLabelLow.includes("itagui")) sedeClass = "sede-itagui";
-                    if (sedeLabelLow.includes("calanzans")) sedeClass = "sede-calanzans";
+                    if (sedeLabelLow.includes("calazans") || sedeLabelLow.includes("calanzans"))
+                        sedeClass = "sede-calazans";
 
-                    const sedeTagHTML = sedeLabel ? `<div class="sede-badge ${sedeClass}">📍 ${sedeLabel}</div>` : '';
+                    const sedeTagHTML = sedeLabel ? `<div class="sede-badge ${sedeClass}" ${isSupervisor ? `onclick="cambiarSede('${idStr}')" style="cursor:pointer" title="Click para cambiar sede"` : ''}>📍 ${sedeLabel}</div>` : '';
 
                     let timer = "";
                     if (d.estado === "almorzando" && d.finAlmuerzo) {
@@ -3109,27 +3691,28 @@
                     else if (rankIdx === 2) rankBadge = '<i class="fas fa-medal medal medal-bronce" title="Top 3"></i>';
 
                     // Lógica de visibilidad de botones según rol
-                    const isOperator = !isSupervisor;
-
-                    const idStr = String(d.id);
-
-                    const discountBtnHTML = isOperator ? `
+                    const discountBtnHTML = `
                         <div class="adj-btns">
                             <button class="btn-increase" onclick="sumarTodo('${idStr}')"><i class="fas fa-plus-circle"></i></button>
                             <button class="btn-discount" onclick="descontarTodo('${idStr}')"><i class="fas fa-minus-circle"></i></button>
                         </div>
-                    ` : '';
+                    `;
 
                     let actionsHTML = "";
-                    if (isOperator) {
-                        actionsHTML = `
-                            <button class="btn-act btn-wa" onclick="enviarWhatsApp('${idStr}')" title="Enviar resumen WhatsApp"><i class="fab fa-whatsapp"></i></button>
-                            <button class="btn-act" onclick="toggleInactivo('${idStr}')" style="color:${d.estado === 'inactivo' ? 'var(--danger)' : '#ccc'}" title="Activar/Desactivar"><i class="fas fa-power-off"></i></button>
-                            <button class="btn-act" onclick="cambiarEstado('${idStr}')" style="color:var(--warning)" title="Asignar Ruta / Marcar como Activo"><i class="fas ${d.estado === 'ruta' ? 'fa-check' : 'fa-route'}"></i></button>
-                            <button class="btn-act" onclick="gestionarAlmuerzo('${idStr}')" style="color:var(--primary)" title="Enviar/Volver Almuerzo"><i class="fas fa-utensils"></i></button>
-                            <button class="btn-act" onclick="finalizarTurno('${idStr}')" style="color:var(--dark)}" title="Finalizar Turno Laboral"><i class="fas fa-sign-out-alt"></i></button>
-                            <button class="btn-act btn-delete" onclick="eliminar('${idStr}')" title="Eliminar domiciliario"><i class="fas fa-trash"></i></button>
-                        `;
+                    const btnWA = `<button class="btn-act btn-wa" onclick="enviarWhatsApp('${idStr}')" title="WhatsApp"><i class="fab fa-whatsapp"></i></button>`;
+                    const btnPower = `<button class="btn-act" onclick="toggleInactivo('${idStr}')" style="color:${d.estado === 'inactivo' ? 'var(--danger)' : '#ccc'}" title="Activar/Desactivar"><i class="fas fa-power-off"></i></button>`;
+                    const btnRoute = `<button class="btn-act" onclick="cambiarEstado('${idStr}')" style="color:var(--warning)" title="Asignar Ruta / Marcar como Activo"><i class="fas ${d.estado === 'ruta' ? 'fa-check' : 'fa-route'}"></i></button>`;
+                    const btnLunch = `<button class="btn-act" onclick="gestionarAlmuerzo('${idStr}')" style="color:var(--primary)" title="Enviar/Volver Almuerzo"><i class="fas fa-utensils"></i></button>`;
+                    const btnLogout = `<button class="btn-act" onclick="finalizarTurno('${idStr}')" style="color:var(--dark)}" title="Finalizar Turno Laboral"><i class="fas fa-sign-out-alt"></i></button>`;
+                    const btnTrash = `<button class="btn-act btn-delete" onclick="eliminar('${idStr}')" title="Eliminar domiciliario"><i class="fas fa-trash"></i></button>`;
+
+                    if (window.isAdmin) {
+                        actionsHTML = btnWA + btnPower + btnRoute + btnLunch + btnLogout + btnTrash;
+                    } else if (window.isSupervisor) {
+                        actionsHTML = btnPower + btnRoute + btnLunch + btnLogout;
+                    } else {
+                        // Operador
+                        actionsHTML = btnRoute + btnLogout;
                     }
 
                     html += `
@@ -3158,7 +3741,7 @@
             });
             lista.innerHTML = html;
 
-            document.getElementById("total").innerText = domiciliarios.length;
+            document.getElementById("total").innerText = filtrados.length;
             document.getElementById("activos").innerText = c.activo;
             document.getElementById("ruta").innerText = c.ruta;
             document.getElementById("cant-almorzando").innerText = c.almorzando;
@@ -3166,8 +3749,13 @@
             document.getElementById("entregas-globales").innerText = c.eG;
             document.getElementById("tortas-globales").innerText = c.tG;
 
+            if (window.isCallCenter) {
+                const ccVal = document.getElementById("cc-tortas-total");
+                if (ccVal) ccVal.innerText = tortasGlobalCC;
+            }
+
             document.getElementById("count-itagui").innerText = sI;
-            document.getElementById("count-calanzans").innerText = sC;
+            document.getElementById("count-calazans").innerText = sC;
         };
 
         window.filtrar = (e) => {
@@ -3363,11 +3951,11 @@
 
         window.exportarLiquidacionesSemanalesExcel = async function () {
             if (historialData.length === 0) { alert("No hay datos históricos para exportar."); return; }
-            
+
             const rango = obtenerRangoSemanal();
             const fI = rango.inicio.getTime();
             const fF = rango.fin.getTime();
-            
+
             const nombresSet = new Set();
             historialData.forEach(h => {
                 if (h.timestamp >= fI && h.timestamp <= fF) {
@@ -3412,11 +4000,11 @@
 
                     const maestro = buscarEnMaestro(nombre);
                     const cuenta = maestro && maestro.cuenta ? maestro.cuenta : "--";
-                    
+
                     const weekKey = rango.inicio.toISOString().split('T')[0];
                     const dedKey = `${weekKey}_${norm(nombre)}`;
                     const listaDeds = deduccionesSemanales[dedKey];
-                    
+
                     let totalDed = 0;
                     if (Array.isArray(listaDeds)) {
                         totalDed = listaDeds.reduce((acc, d) => acc + (d.v || 0), 0);
@@ -3440,7 +4028,7 @@
                     row.getCell(3).numFmt = '"$"#,##0';
                     row.getCell(4).numFmt = '"$"#,##0';
                     row.getCell(5).numFmt = '"$"#,##0';
-                    
+
                     // Pintar Total Neto (Columna 5) de verde claro
                     row.getCell(5).fill = {
                         type: 'pattern',
@@ -3472,7 +4060,7 @@
             const weekKey = rango.inicio.toISOString().split('T')[0];
             const dedKey = `${weekKey}_${norm(nombre)}`;
             const savedData = deduccionesSemanales[dedKey];
-            
+
             let listaDeds = [];
             if (Array.isArray(savedData)) {
                 listaDeds = savedData;
@@ -3574,7 +4162,7 @@
                 </div>
             `;
 
-            window.renderFilasDeduccion = function() {
+            window.renderFilasDeduccion = function () {
                 const container = document.getElementById('containerDeducciones');
                 if (!container) return;
                 container.innerHTML = listaDeds.map((d, index) => `
@@ -3592,13 +4180,13 @@
                 `).join('');
             };
 
-            window.agregarFilaDeduccion = function() {
+            window.agregarFilaDeduccion = function () {
                 listaDeds.push({ c: "", v: 0 });
                 window.renderFilasDeduccion();
                 window.actualizarTotalNeto();
             };
 
-            window.eliminarFilaDeduccion = function(idx) {
+            window.eliminarFilaDeduccion = function (idx) {
                 listaDeds.splice(idx, 1);
                 if (listaDeds.length === 0) listaDeds.push({ c: "Préstamo", v: 0 });
                 window.renderFilasDeduccion();
@@ -3621,7 +4209,7 @@
                 listaDeds = nuevasDeds;
                 const neto = totalPay - totalDed;
                 document.getElementById('valTotalNeto').innerText = formatM(neto);
-                
+
                 // Guardar persistente en Firebase
                 set(ref(db, `deducciones_semanales/${dedKey}`), listaDeds);
             };
