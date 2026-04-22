@@ -1058,34 +1058,63 @@
 
         @media (max-width: 500px) {
             .top-bar {
-                gap: 5px;
-                margin-bottom: 10px;
+                flex-direction: column;
                 align-items: center;
-            }
-
-            .branch-stat {
-                padding: 4px 6px;
-                font-size: 0.6rem;
-                gap: 3px;
-            }
-
-            .live-clock {
-                padding: 6px 14px;
-                min-width: 100px;
-                justify-content: center;
-            }
-
-            .clock-content {
-                align-items: center;
+                gap: 12px;
+                margin-bottom: 20px;
                 text-align: center;
             }
 
+            .branch-counters {
+                justify-content: center;
+                width: 100%;
+                flex-wrap: nowrap !important;
+                gap: 4px;
+            }
+
+            .branch-stat {
+                padding: 6px 4px;
+                font-size: 0.62rem;
+                gap: 3px;
+                flex: 1;
+                justify-content: center;
+                min-width: 0;
+                white-space: nowrap;
+            }
+
+            .live-clock {
+                padding: 8px 12px;
+                width: 100%;
+                box-sizing: border-box;
+                justify-content: space-between;
+                flex-wrap: nowrap;
+                gap: 10px;
+            }
+
+            .role-selector {
+                margin-right: 0 !important;
+            }
+
+            .clock-content {
+                align-items: flex-end;
+                text-align: right;
+            }
+
             .clock-time {
-                font-size: 0.85rem;
+                font-size: 1rem;
             }
 
             .clock-date {
-                font-size: 0.55rem;
+                font-size: 0.6rem;
+            }
+
+            .sede-activa-badge {
+                position: relative;
+                top: 0;
+                left: 0;
+                margin: 0 auto 10px auto;
+                width: fit-content;
+                display: flex;
             }
         }
 
@@ -1891,9 +1920,8 @@
                 if (mode !== 'operador') {
                     window.location.search = "mode=operador";
                 } else {
-                    // Si ya está en operador y cancela el login de operador, simplemente lo dejamos ahí 
-                    // (el modal se puede cerrar pero aplicarPermisos lo volverá a abrir si no está authed)
-                    cerrarModal('modalLogin');
+                    // Si ya está en operador y cancela el login de operador, recargamos para no permitir el acceso
+                    window.location.reload();
                 }
             } else {
                 cerrarModal('modalLogin');
@@ -1902,7 +1930,7 @@
 
         window.seleccionarSedeOperador = function (sede) {
             window.sedeSeleccionada = sede;
-            localStorage.setItem('domifaster_sede', sede);
+            sessionStorage.setItem('domifaster_sede', sede);
             sessionStorage.setItem('domifaster_sede_activa', 'true');
             cerrarModal('modalSeleccionSede');
             aplicarFiltroSedeUI();
@@ -2044,11 +2072,11 @@
         aplicarPermisosUI();
 
         // --- LÓGICA DE SEDES ---
-        window.sedeSeleccionada = localStorage.getItem('domifaster_sede') || 'Todas';
+        window.sedeSeleccionada = sessionStorage.getItem('domifaster_sede') || 'Todas';
 
         window.cambiarVistaSede = function (sede) {
             window.sedeSeleccionada = sede;
-            localStorage.setItem('domifaster_sede', sede);
+            sessionStorage.setItem('domifaster_sede', sede);
             aplicarFiltroSedeUI();
             render();
         };
