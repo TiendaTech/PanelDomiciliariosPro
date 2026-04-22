@@ -3578,8 +3578,8 @@
         };
 
         window.eliminar = async function (id) {
-            if (!isAdmin) {
-                Swal.fire({ icon: 'error', title: 'Acceso Denegado', text: 'Solo el administrador/programador puede eliminar domiciliarios de la lista.' });
+            if (!isSupervisor) {
+                Swal.fire({ icon: 'error', title: 'Acceso Denegado', text: 'Solo Supervisores y Administradores pueden eliminar domiciliarios de la lista.' });
                 return;
             }
             // Buscamos con == para permitir comparación de string vs number
@@ -3772,7 +3772,7 @@
                     if (window.isAdmin) {
                         actionsHTML = btnWA + btnPower + btnRoute + btnLunch + btnLogout + btnTrash;
                     } else if (window.isSupervisor) {
-                        actionsHTML = btnPower + btnRoute + btnLunch + btnLogout;
+                        actionsHTML = btnPower + btnRoute + btnLunch + btnLogout + btnTrash;
                     } else {
                         // Operador
                         actionsHTML = btnRoute + btnLogout;
