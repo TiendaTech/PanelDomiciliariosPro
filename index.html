@@ -1836,7 +1836,7 @@
         }
 
         // Verificación de Autenticidad (Seguridad por URL)
-        let authed = (mode === 'operador' || mode === 'callcenter');
+        let authed = (mode === 'callcenter');
         if (!authed) {
             authed = sessionStorage.getItem('auth_' + mode) === 'true';
         }
@@ -1858,9 +1858,12 @@
             if (role === 'admin') {
                 icon.innerHTML = '<i class="fas fa-user-cog"></i>';
                 title.innerText = 'Acceso Administrador';
-            } else {
+            } else if (role === 'supervisor') {
                 icon.innerHTML = '<i class="fas fa-user-shield"></i>';
                 title.innerText = 'Acceso Supervisor';
+            } else {
+                icon.innerHTML = '<i class="fas fa-user"></i>';
+                title.innerText = 'Acceso Operador';
             }
 
             abrirModal('modalLogin');
@@ -1882,9 +1885,16 @@
         };
 
         window.cancelarLogin = function () {
-            // Si el modo actual no está autenticado y se cierra el modal, forzar vuelta a operador
-            if (mode !== 'operador' && sessionStorage.getItem('auth_' + mode) !== 'true') {
-                window.location.search = "mode=operador";
+            // Si el modo actual no está autenticado y se cierra el modal
+            if (sessionStorage.getItem('auth_' + mode) !== 'true' && mode !== 'callcenter') {
+                // Si intentaba entrar a otro modo y cancela, volver a operador (que también pedirá clave si no la tiene)
+                if (mode !== 'operador') {
+                    window.location.search = "mode=operador";
+                } else {
+                    // Si ya está en operador y cancela el login de operador, simplemente lo dejamos ahí 
+                    // (el modal se puede cerrar pero aplicarPermisos lo volverá a abrir si no está authed)
+                    cerrarModal('modalLogin');
+                }
             } else {
                 cerrarModal('modalLogin');
             }
@@ -1908,7 +1918,7 @@
         };
 
         window.cambiarRol = function (nuevoRol) {
-            if (nuevoRol === 'operador') {
+            if (sessionStorage.getItem('auth_' + nuevoRol) === 'true' || nuevoRol === 'callcenter') {
                 window.location.search = `?mode=${nuevoRol}`;
             } else {
                 window.accesoLogin(nuevoRol);
@@ -1917,7 +1927,9 @@
 
         window.validarAccesoSupervisor = function () {
             const pass = document.getElementById('passSupervisor').value;
-            let passCorrecta = (window.targetRole === 'admin') ? "Admin$DomiFas" : "Super.DomiFas";
+            let passCorrecta = "Super.DomiFas";
+            if (window.targetRole === 'admin') passCorrecta = "Admin$DomiFas";
+            if (window.targetRole === 'operador') passCorrecta = "Oper.DomiFas";
 
             if (pass === passCorrecta) {
                 sessionStorage.setItem('auth_' + window.targetRole, 'true');
@@ -1936,7 +1948,7 @@
 
         function aplicarPermisosUI() {
             // Si intenta entrar a modo protegido sin auth, forzar login
-            if (mode !== 'operador' && !authed) {
+            if (!authed) {
                 window.accesoLogin(mode);
             }
 
