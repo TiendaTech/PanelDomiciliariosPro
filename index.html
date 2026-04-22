@@ -1864,11 +1864,22 @@
             window.isCallCenter = false;
         }
 
-        // Verificación de Autenticidad (Seguridad por URL)
-        let authed = (mode === 'callcenter');
-        if (!authed) {
-            authed = sessionStorage.getItem('auth_' + mode) === 'true';
+        // Verificación de Autenticidad (Seguridad por URL y Persistencia de 9 Horas)
+        function isAuthValid(role) {
+            if (role === 'callcenter') return true;
+            const authStr = localStorage.getItem('auth_' + role);
+            if (!authStr) return false;
+            try {
+                const authData = JSON.parse(authStr);
+                const now = Date.now();
+                const nineHours = 9 * 60 * 60 * 1000;
+                return (now - authData.timestamp) < nineHours;
+            } catch (e) {
+                return false;
+            }
         }
+
+        let authed = isAuthValid(mode);
 
         // Si no está autenticado, el "modo efectivo" vuelve a ser operador para el renderizado inicial
         window.modeEfectivo = authed ? mode : 'operador';
@@ -1915,7 +1926,7 @@
 
         window.cancelarLogin = function () {
             // Si el modo actual no está autenticado y se cierra el modal
-            if (sessionStorage.getItem('auth_' + mode) !== 'true' && mode !== 'callcenter') {
+            if (!isAuthValid(mode)) {
                 // Si intentaba entrar a otro modo y cancela, volver a operador (que también pedirá clave si no la tiene)
                 if (mode !== 'operador') {
                     window.location.search = "mode=operador";
@@ -1946,7 +1957,7 @@
         };
 
         window.cambiarRol = function (nuevoRol) {
-            if (sessionStorage.getItem('auth_' + nuevoRol) === 'true' || nuevoRol === 'callcenter') {
+            if (isAuthValid(nuevoRol)) {
                 window.location.search = `?mode=${nuevoRol}`;
             } else {
                 window.accesoLogin(nuevoRol);
@@ -1960,7 +1971,11 @@
             if (window.targetRole === 'operador') passCorrecta = "Oper.DomiFas";
 
             if (pass === passCorrecta) {
-                sessionStorage.setItem('auth_' + window.targetRole, 'true');
+                const authData = {
+                    authenticated: true,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('auth_' + window.targetRole, JSON.stringify(authData));
                 window.location.search = `?mode=${window.targetRole}`;
             } else {
                 const input = document.getElementById('passSupervisor');
