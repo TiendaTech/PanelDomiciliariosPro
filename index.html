@@ -2443,23 +2443,35 @@
             }
             // -----------------------------------------------------
 
-            // Sincronización inteligente: No sobreescribimos si hay escrituras locales en curso
+            // --- SINCRONIZACIÓN CON PROTECCIÓN ANTI-FLICKER (REPARACIÓN DE BUG DE REAPARICIÓN EN LIBRES) ---
             const ahoraSync = Date.now();
             const nuevosIds = new Set(tempArray.map(d => String(d.id)));
 
-            // Los elementos que ya están en Firebase ya no están "pendientes"
+            // 1. Fusionar datos del servidor con actualizaciones locales recientes (Optimismo)
+            const baseFusionada = tempArray.map(serverDomi => {
+                const local = domiciliarios.find(ld => String(ld.id) === String(serverDomi.id));
+                // Si tenemos una versión local actualizada hace menos de 5 segundos, la preferimos
+                // para evitar que el estado vuelva a "activo" mientras Firebase procesa el "set".
+                if (local && local._localUpdate && (ahoraSync - local._localUpdate) < 5000) {
+                    return local;
+                }
+                return serverDomi;
+            });
+
+            // 2. Limpiar marcas de pendiente para registros que ya llegaron al servidor
             domiciliarios.forEach(d => {
                 if (nuevosIds.has(String(d.id))) delete d._pendiente;
             });
 
-            // Solo mantenemos localmente lo que marcamos como pendiente hace menos de 8 segundos
+            // 3. Recuperar registros nuevos que aún no están en el servidor (pendientes de creación)
             const pendientesLocal = domiciliarios.filter(d =>
                 d._pendiente &&
                 !nuevosIds.has(String(d.id)) &&
                 (ahoraSync - d.id) < 8000
             );
 
-            domiciliarios = [...tempArray, ...pendientesLocal];
+            // 4. Lista final: Sincronizados (con protección) + Nuevos Pendientes
+            domiciliarios = [...baseFusionada, ...pendientesLocal];
             render();
         }, (error) => {
             console.error("Error cargando domiciliarios:", error);
@@ -2610,6 +2622,7 @@
 
         async function guardar(d) {
             if (!d || !d.id) return;
+            d._localUpdate = Date.now(); // Marca de tiempo para protección anti-flicker (5 seg)
             try {
                 const targetRef = ref(db, `domiciliarios/${d.id}`);
                 await set(targetRef, d);
@@ -3234,7 +3247,6 @@
             };
 
             try {
-                // Optimismo: Agregamos localmente y renderizamos
                 domiciliarios.push(nuevoDomi);
                 render();
 
@@ -3243,7 +3255,7 @@
                     input.focus();
                 }
 
-                await set(ref(db, `domiciliarios/${nuevoId}`), nuevoDomi);
+                await guardar(nuevoDomi);
             } catch (error) {
                 console.error("Error al agregar:", error);
                 alert("⚠️ Error al guardar en la nube: " + error.message);
