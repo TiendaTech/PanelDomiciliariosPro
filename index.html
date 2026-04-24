@@ -1505,7 +1505,7 @@
         <div class="search-wrapper">
             <i class="fas fa-search"></i>
             <input type="text" id="busqueda" placeholder="Buscar por nombre..."
-                oninput="actualizarDatalist(this.value); render()" list="personal-list">
+                oninput="render()">
         </div>
 
         <div class="filters">
@@ -2202,7 +2202,7 @@
         }
 
         // --- SISTEMA DE RENDERIZADO OPTIMIZADO (THROTTLED) ---
-        function render() {
+        window.render = function () {
             if (renderTimeout) return;
             renderTimeout = setTimeout(() => {
                 try {
@@ -3559,10 +3559,19 @@
 
             const rankIdx = rankedSede.findIndex(x => x.id === d.id);
             let insigniaMsg = "";
+            let felicitacion = "\n\n¡Excelente trabajo!";
             const sedeSuffix = currentSedeRaw ? ` (Sede ${currentSedeRaw})` : "";
-            if (rankIdx === 0) insigniaMsg = `\n*Top 1 en entregas${sedeSuffix}*`;
-            else if (rankIdx === 1) insigniaMsg = `\n*Top 2 en entregas${sedeSuffix}*`;
-            else if (rankIdx === 2) insigniaMsg = `\n*Top 3 en entregas${sedeSuffix}*`;
+
+            if (rankIdx === 0) {
+                insigniaMsg = `\n*Top 1 en entregas${sedeSuffix}* 🥇`;
+                felicitacion = `\n\n🏆 *¡ERES EL NÚMERO 1!* \nTu esfuerzo hoy fue insuperable. ¡Gracias por liderar con el ejemplo en la Sede ${currentSedeRaw}! 🚀`;
+            } else if (rankIdx === 1) {
+                insigniaMsg = `\n*Top 2 en entregas${sedeSuffix}* 🥈`;
+                felicitacion = `\n\n🥈 *¡EXCELENTE DESEMPEÑO!* \nHas logrado el segundo lugar en la Sede ${currentSedeRaw}. ¡Estás imparable, mañana vamos por el primer puesto! 💪`;
+            } else if (rankIdx === 2) {
+                insigniaMsg = `\n*Top 3 en entregas${sedeSuffix}* 🥉`;
+                felicitacion = `\n\n🥉 *¡DENTRO DEL TOP 3!* \nMuy buen trabajo el día de hoy en la Sede ${currentSedeRaw}. Tu constancia es clave para nuestro éxito. ✨`;
+            }
 
             const liq = calcularLiquidacion(d);
             const formatM = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
@@ -3583,7 +3592,7 @@
                 `*Tortas:* ${d.tortasPescado || 0}\n` +
                 desgloseMsg + `\n` +
                 insigniaMsg +
-                `\n\n¡Excelente trabajo!`
+                felicitacion
             );
 
             abrirEnlaceWhatsApp(contact, msg);
@@ -3757,14 +3766,17 @@
             });
 
             ordenados.forEach((d) => {
+                const nombreDomi = (d.nombre || "").toLowerCase();
+                const cumpleBusqueda = nombreDomi.includes(busq);
+                const cumpleEstado = (filtroEstado === "todos" || d.estado === filtroEstado);
+
+                // Los contadores siempre deben reflejar el total de la sede para el filtro de estado seleccionado
                 if (d.estado && c[d.estado] !== undefined) c[d.estado]++;
                 c.eG += d.entregasRealizadas || 0;
                 c.tG += d.tortasPescado || 0;
 
-                if (
-                    (d.nombre || "").toLowerCase().includes(busq) &&
-                    (filtroEstado === "todos" || d.estado === filtroEstado)
-                ) {
+                // Solo renderizamos si cumple ambos filtros (Búsqueda y Estado)
+                if (cumpleBusqueda && cumpleEstado) {
                     const idStr = String(d.id);
                     const maestroItem = buscarEnMaestro(d.nombre);
                     const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "") || "";
