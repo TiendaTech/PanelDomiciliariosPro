@@ -2416,30 +2416,35 @@
             }
 
             // --- SISTEMA DE MIGRACIÓN PROFUNDA (EQUIDAD TOTAL) ---
-            let needsMigration = false;
+            // Solo actualizamos los registros que REALMENTE necesitan cambios para evitar sobrescribir datos nuevos de otras sedes
+            let updatesMigration = {};
             const ahoraGlobal = getServerNow();
+            
             tempArray = tempArray.map((d, index) => {
-                if (!d) return d; // Seguridad extra
+                if (!d) return d;
                 let changed = false;
+                let patch = {};
+
                 if (!d.id) {
                     d.id = ahoraGlobal + index;
+                    patch.id = d.id;
                     changed = true;
                 }
-                // Si no tiene turnoTimestamp, lo tratamos como recién llegado AHORA
                 if (!d.turnoTimestamp) {
                     d.turnoTimestamp = ahoraGlobal;
+                    patch.turnoTimestamp = d.turnoTimestamp;
                     changed = true;
                 }
-                if (changed) needsMigration = true;
+
+                if (changed) {
+                    updatesMigration[d.id] = { ...d, ...patch };
+                }
                 return d;
             }).filter(item => item !== null);
 
-            if (needsMigration) {
-                console.log("Normalizando turnos para cola equitativa...");
-                const updates = {};
-                tempArray.forEach(d => { if (d && d.id) updates[d.id] = d; });
-                // Usamos update en lugar de set para no borrar ingresos concurrentes
-                update(domRef, updates);
+            if (Object.keys(updatesMigration).length > 0) {
+                console.log("Normalizando turnos para registros específicos...", Object.keys(updatesMigration));
+                update(domRef, updatesMigration);
             }
             // -----------------------------------------------------
 
@@ -2622,10 +2627,19 @@
 
         async function guardar(d) {
             if (!d || !d.id) return;
-            d._localUpdate = Date.now(); // Marca de tiempo para protección anti-flicker (5 seg)
+            
+            // Marca local para protección anti-flicker (5 seg)
+            // IMPORTANTE: No se sube al servidor para no confundir a otros clientes
+            d._localUpdate = Date.now(); 
+            
+            const cleanData = { ...d };
+            delete cleanData._localUpdate;
+            delete cleanData._pendiente;
+            delete cleanData._localPath; // Por si acaso existe de versiones viejas
+
             try {
                 const targetRef = ref(db, `domiciliarios/${d.id}`);
-                await set(targetRef, d);
+                await set(targetRef, cleanData);
             } catch (error) {
                 console.error("Error al guardar:", error);
             }
@@ -3528,8 +3542,13 @@
             const sedeLabel = d.sede || (maestroItem ? maestroItem.sede : "");
             const sedeMsg = sedeLabel ? `*Sede:* ${sedeLabel}\n` : "";
 
-            // Calcular Ranking para incluir insignia en el mensaje
-            const ranked = [...domiciliarios]
+            // Calcular Ranking por Sede para incluir insignia en el mensaje
+            const currentSedeRaw = sedeLabel || "";
+            const rankedSede = [...domiciliarios]
+                .filter(dom => {
+                    const s = dom.sede || (buscarEnMaestro(dom.nombre) || {}).sede || "";
+                    return s === currentSedeRaw;
+                })
                 .filter(dom => dom.entregasRealizadas > 0)
                 .sort((a, b) => {
                     if (b.entregasRealizadas !== a.entregasRealizadas) {
@@ -3538,11 +3557,12 @@
                     return (b.tortasPescado || 0) - (a.tortasPescado || 0);
                 });
 
-            const rankIdx = ranked.findIndex(x => x.id === d.id);
+            const rankIdx = rankedSede.findIndex(x => x.id === d.id);
             let insigniaMsg = "";
-            if (rankIdx === 0) insigniaMsg = "\n*Top 1 en cantidad de entregas*";
-            else if (rankIdx === 1) insigniaMsg = "\n*Top 2 en cantidad de entregas*";
-            else if (rankIdx === 2) insigniaMsg = "\n*Top 3 en cantidad de entregas*";
+            const sedeSuffix = currentSedeRaw ? ` (Sede ${currentSedeRaw})` : "";
+            if (rankIdx === 0) insigniaMsg = `\n*Top 1 en entregas${sedeSuffix}*`;
+            else if (rankIdx === 1) insigniaMsg = `\n*Top 2 en entregas${sedeSuffix}*`;
+            else if (rankIdx === 2) insigniaMsg = `\n*Top 3 en entregas${sedeSuffix}*`;
 
             const liq = calcularLiquidacion(d);
             const formatM = (v) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(v);
@@ -3707,16 +3727,27 @@
                     (window.sedeSeleccionada === "Calazans" && (sedeDomiLow.includes("calazans") || sedeDomiLow.includes("calanzans")));
             });
 
-            // Ranking (solo para la sede filtrada)
-            const ranked = [...filtrados]
-                .filter(d => d.entregasRealizadas > 0)
-                .sort((a, b) => {
-                    if (b.entregasRealizadas !== a.entregasRealizadas) {
-                        return b.entregasRealizadas - a.entregasRealizadas;
-                    }
-                    return (b.tortasPescado || 0) - (a.tortasPescado || 0);
+            // --- CÁLCULO DE RANKING POR SEDE ---
+            const sedesDisponibles = ["Itagui", "Calazans"];
+            const top3BySede = {};
+
+            sedesDisponibles.forEach(sName => {
+                const sLow = sName.toLowerCase();
+                const listSede = domiciliarios.filter(dom => {
+                    const s = dom.sede || (personalMaestro.find(p => norm(p.nombre) === norm(dom.nombre)) || {}).sede || "";
+                    const sl = s.toString().toLowerCase();
+                    return sl.includes(sLow) || (sLow === "calazans" && sl.includes("calanzans"));
                 });
-            const top3Ids = ranked.slice(0, 3).map(d => d.id);
+
+                top3BySede[sName] = [...listSede]
+                    .filter(dom => dom.entregasRealizadas > 0)
+                    .sort((a, b) => {
+                        if (b.entregasRealizadas !== a.entregasRealizadas) return b.entregasRealizadas - a.entregasRealizadas;
+                        return (b.tortasPescado || 0) - (a.tortasPescado || 0);
+                    })
+                    .slice(0, 3)
+                    .map(dom => dom.id);
+            });
 
             // Ordenación
             const ordenados = [...filtrados].sort((a, b) => {
@@ -3758,12 +3789,17 @@
                         timer = `<span class="timer-display" data-timer-id="${d.id}" style="color:#757575; font-weight:800; font-size:0.8rem;"><i class="fas fa-pause-circle"></i> ${Math.floor(diff / 60)}:${(diff % 60).toString().padStart(2, '0')}</span>`;
                     }
 
-                    // Badge de Ranking
+                    // Badge de Ranking (Ahora por sede)
                     let rankBadge = "";
+                    let currentSedeKey = "";
+                    if (sedeLabelLow.includes("itagui")) currentSedeKey = "Itagui";
+                    else if (sedeLabelLow.includes("calazans") || sedeLabelLow.includes("calanzans")) currentSedeKey = "Calazans";
+
+                    const top3Ids = currentSedeKey ? (top3BySede[currentSedeKey] || []) : [];
                     const rankIdx = top3Ids.indexOf(d.id);
-                    if (rankIdx === 0) rankBadge = '<i class="fas fa-medal medal medal-oro" title="Top 1"></i>';
-                    else if (rankIdx === 1) rankBadge = '<i class="fas fa-medal medal medal-plata" title="Top 2"></i>';
-                    else if (rankIdx === 2) rankBadge = '<i class="fas fa-medal medal medal-bronce" title="Top 3"></i>';
+                    if (rankIdx === 0) rankBadge = '<i class="fas fa-medal medal medal-oro" title="Top 1 Sede"></i>';
+                    else if (rankIdx === 1) rankBadge = '<i class="fas fa-medal medal medal-plata" title="Top 2 Sede"></i>';
+                    else if (rankIdx === 2) rankBadge = '<i class="fas fa-medal medal medal-bronce" title="Top 3 Sede"></i>';
 
                     // Lógica de visibilidad de botones según rol
                     const discountBtnHTML = `
