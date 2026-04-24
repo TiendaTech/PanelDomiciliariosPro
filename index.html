@@ -1504,8 +1504,7 @@
 
         <div class="search-wrapper">
             <i class="fas fa-search"></i>
-            <input type="text" id="busqueda" placeholder="Buscar por nombre..."
-                oninput="render()">
+            <input type="text" id="busqueda" placeholder="Buscar por nombre..." oninput="render()">
         </div>
 
         <div class="filters">
@@ -2419,7 +2418,7 @@
             // Solo actualizamos los registros que REALMENTE necesitan cambios para evitar sobrescribir datos nuevos de otras sedes
             let updatesMigration = {};
             const ahoraGlobal = getServerNow();
-            
+
             tempArray = tempArray.map((d, index) => {
                 if (!d) return d;
                 let changed = false;
@@ -2627,11 +2626,11 @@
 
         async function guardar(d) {
             if (!d || !d.id) return;
-            
+
             // Marca local para protección anti-flicker (5 seg)
             // IMPORTANTE: No se sube al servidor para no confundir a otros clientes
-            d._localUpdate = Date.now(); 
-            
+            d._localUpdate = Date.now();
+
             const cleanData = { ...d };
             delete cleanData._localUpdate;
             delete cleanData._pendiente;
