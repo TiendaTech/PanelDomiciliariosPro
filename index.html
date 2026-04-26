@@ -12,6 +12,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
     <style>
         :root {
@@ -2638,7 +2639,7 @@
 
             try {
                 const targetRef = ref(db, `domiciliarios/${d.id}`);
-                await set(targetRef, cleanData);
+                await update(targetRef, cleanData);
             } catch (error) {
                 console.error("Error al guardar:", error);
             }
@@ -3439,6 +3440,7 @@
                 });
                 cerrarModal('modalRuta');
                 if (!data) return;
+                d = domiciliarios.find(x => x.id == id) || d;
                 d.estado = "ruta";
                 d.rutasRealizadas++;
                 d.entregasRealizadas += data.e;
@@ -3469,6 +3471,7 @@
 
             cerrarModal('modalAjuste');
             if (data) {
+                d = domiciliarios.find(x => x.id == id) || d;
                 d.entregasRealizadas = Math.max(0, d.entregasRealizadas - data.e);
                 d.tortasPescado = Math.max(0, d.tortasPescado - data.t);
                 render(); // Optimismo
@@ -3491,6 +3494,7 @@
 
             cerrarModal('modalSumar');
             if (data) {
+                d = domiciliarios.find(x => x.id == id) || d;
                 d.entregasRealizadas += data.e;
                 d.tortasPescado += data.t;
                 render(); // Optimismo
@@ -3607,6 +3611,7 @@
                 icono: '<i class="fas fa-sign-out-alt" style="color:#2d3436"></i>'
             });
             if (res) {
+                d = domiciliarios.find(x => x.id == id) || d;
                 d.finLaboral = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
                 d.finTimestamp = getServerNow();
                 d.estado = "inactivo";
