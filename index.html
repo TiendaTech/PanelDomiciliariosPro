@@ -2201,6 +2201,8 @@
         let personalMaestro = [];
         let maestroMap = new Map(); // Para búsquedas rápidas O(1)
         let historialData = [];
+        let historialData_raw = {}; // Versión original (objeto) para reparaciones
+
         let deduccionesSemanales = {};
         let chartInstance = null;
         let editIdMaestro = null;
@@ -2559,6 +2561,7 @@
 
         onValue(historialRef, (snapshot) => {
             const data = snapshot.val();
+            historialData_raw = data || {}; // Guardar copia raw para Reparar Historial
             let tempArray = [];
             if (data) {
                 // Preservar llaves (IDs) al convertir a array
@@ -4138,8 +4141,8 @@
                     const isLid = lideresNames.some(n => normalize(n) === nameNorm);
                     const isIndrive = nameNorm.includes("indrive");
 
-                    // Buscar salario en el maestro
-                    const m = personalMaestro.find(p => normalize(p.nombre) === nameNorm);
+                    // Buscar salario en el maestro usando la lógica robusta (incluye alias)
+                    const m = buscarEnMaestro(d.n);
                     let baseDaily = (m && m.salario && m.salario.trim() !== "") ? parseInt(m.salario.replace(/\D/g, "")) : 100000;
 
                     let valBase = 0;
