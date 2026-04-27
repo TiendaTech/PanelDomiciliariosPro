@@ -1485,6 +1485,10 @@
                     title="Gestión de Personal" style="background: #000;">
                     <i class="fas fa-users-cog"></i>
                 </button>
+                <button class="btn-dashboard" id="btn-gestion-sesiones" onclick="abrirModalSesiones()"
+                    title="Control de Sesiones" style="background: #e67e22;">
+                    <i class="fas fa-user-lock"></i>
+                </button>
             </div>
         </div>
 
@@ -1813,6 +1817,26 @@
         </div>
     </div>
 
+    <!-- MODAL DE GESTIÓN DE SESIONES -->
+    <div class="modal-overlay" id="modalSesiones" onclick="if(event.target === this) cerrarModal(this.id)">
+        <div class="modal-content" style="max-width: 600px;">
+            <div style="color: #e67e22; font-size: 1.5rem; margin-bottom: 10px;"><i class="fas fa-user-lock"></i></div>
+            <h3>Control de Sesiones Activas</h3>
+            <p style="font-size: 0.8rem; color: #8d99ae; margin-bottom: 15px;">Listado de usuarios conectados
+                actualmente. Puedes cerrar sesiones de forma remota.</p>
+
+            <div class="personal-list-container" id="listaSesiones" style="max-height: 400px; text-align: left;">
+                <!-- Se cargará dinámicamente -->
+            </div>
+
+            <div class="modal-btns">
+                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalSesiones')"
+                    style="background: #eee;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
@@ -1887,6 +1911,7 @@
         window.isSupervisor = (window.modeEfectivo === 'supervisor' || window.modeEfectivo === 'admin');
         window.isAdmin = window.modeEfectivo === 'admin';
         window.targetRole = "";
+        window.sessionId = localStorage.getItem('domifaster_session_id') || "";
 
         // Aplicar restricciones según el rol
         document.getElementById('titulo-panel').style.display = 'none';
@@ -1971,11 +1996,25 @@
             if (window.targetRole === 'operador') passCorrecta = "Oper.DomiFas";
 
             if (pass === passCorrecta) {
+                const sId = "sess_" + Date.now() + "_" + Math.floor(Math.random() * 1000);
                 const authData = {
                     authenticated: true,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    sessionId: sId
                 };
                 localStorage.setItem('auth_' + window.targetRole, JSON.stringify(authData));
+                localStorage.setItem('domifaster_session_id', sId);
+
+                // Registrar sesión en Firebase
+                set(ref(db, `sesiones_activas/${sId}`), {
+                    id: sId,
+                    rol: window.targetRole,
+                    timestamp: Date.now(),
+                    inicio: new Date().toLocaleString(),
+                    sede: sessionStorage.getItem('domifaster_sede') || "No definida",
+                    userAgent: navigator.userAgent
+                });
+
                 window.location.search = `?mode=${window.targetRole}`;
             } else {
                 const input = document.getElementById('passSupervisor');
@@ -2032,7 +2071,7 @@
             if (btnAgregar) btnAgregar.style.display = 'flex';
 
             // Ocultar funciones exclusivas de ADMIN
-            const adminOnlyElements = ['btn-reportes', 'btn-semanales', 'btn-gestion-personal', 'btn-exportar-excel', 'btn-borrar-todo'];
+            const adminOnlyElements = ['btn-reportes', 'btn-semanales', 'btn-gestion-personal', 'btn-exportar-excel', 'btn-borrar-todo', 'btn-gestion-sesiones'];
             adminOnlyElements.forEach(id => {
                 const el = document.getElementById(id);
                 if (el) el.style.display = window.isAdmin ? 'flex' : 'none';
@@ -2135,6 +2174,28 @@
         const maestroRef = ref(db, 'personal_maestro');
         const historialRef = ref(db, 'historial');
         const deduccionesRef = ref(db, 'deducciones_semanales');
+        const sesionesRef = ref(db, 'sesiones_activas');
+
+        // Escuchar si la sesión actual ha sido eliminada (Cierre de sesión remoto)
+        if (authed && window.sessionId) {
+            onValue(ref(db, `sesiones_activas/${window.sessionId}`), (snapshot) => {
+                if (!snapshot.exists() && authed) {
+                    // La sesión ya no existe en el servidor, forzar logout
+                    localStorage.removeItem('auth_operador');
+                    localStorage.removeItem('auth_supervisor');
+                    localStorage.removeItem('auth_admin');
+                    localStorage.removeItem('domifaster_session_id');
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Sesión Finalizada',
+                        text: 'Tu sesión ha sido cerrada remotamente por el administrador.',
+                        confirmButtonText: 'Entendido'
+                    }).then(() => {
+                        window.location.reload();
+                    });
+                }
+            });
+        }
 
         let domiciliarios = [];
         let personalMaestro = [];
@@ -3427,7 +3488,57 @@
             });
         }
 
+        window.abrirModalSesiones = function () {
+            if (!isAdmin) return;
+            document.getElementById('modalSesiones').style.display = 'flex';
+
+            // Escuchar sesiones activas en tiempo real
+            onValue(sesionesRef, (snapshot) => {
+                const data = snapshot.val();
+                const container = document.getElementById('listaSesiones');
+                let html = "";
+
+                if (data) {
+                    Object.values(data).sort((a, b) => b.timestamp - a.timestamp).forEach(s => {
+                        const esPropia = s.id === window.sessionId;
+                        html += `
+                            <div class="personal-row" style="background: ${esPropia ? '#fff9db' : '#fff'}">
+                                <div class="personal-info-main" style="flex-direction: column; align-items: flex-start;">
+                                    <div style="display:flex; align-items:center; gap:8px; width:100%; justify-content: space-between;">
+                                        <span><b>Rol:</b> ${s.rol.toUpperCase()} ${esPropia ? '<small>(Tú)</small>' : ''}</span>
+                                        ${!esPropia ? `<button class="btn-del-maestro" onclick="cerrarSesionRemota('${s.id}')" title="Cerrar Sesión"><i class="fas fa-sign-out-alt"></i></button>` : ''}
+                                    </div>
+                                    <div style="font-size: 0.7rem; color: #666; margin-top: 5px;">
+                                        <div><i class="fas fa-clock"></i> Inicio: ${s.inicio}</div>
+                                        <div><i class="fas fa-map-marker-alt"></i> Sede: ${s.sede}</div>
+                                        <div style="font-size: 0.6rem; color: #999; margin-top: 2px;">${s.userAgent.substring(0, 60)}...</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                } else {
+                    html = "<p style='text-align:center; padding:20px; color:#999;'>No hay sesiones activas registradas.</p>";
+                }
+                container.innerHTML = html;
+            });
+        };
+
+        window.cerrarSesionRemota = async function (id) {
+            const res = await confirmarAccion({
+                titulo: "Cerrar Sesión",
+                texto: "¿Deseas forzar el cierre de esta sesión de forma remota?",
+                botonSi: "Cerrar Sesión",
+                color: "var(--danger)",
+                icono: '<i class="fas fa-user-slash" style="color:var(--danger)"></i>'
+            });
+            if (res) {
+                remove(ref(db, `sesiones_activas/${id}`));
+            }
+        };
+
         window.cambiarEstado = async function (id) {
+
             let d = domiciliarios.find(x => x.id == id);
             if (d.estado === "activo" || d.estado === "inactivo") {
                 const modal = document.getElementById('modalRuta');
