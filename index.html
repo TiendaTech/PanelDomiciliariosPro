@@ -1839,7 +1839,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, remove, get, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         // --- LÓGICA DE ROLES (MODO SUPERVISOR Y OPERADOR) ---
         window.abrirModal = function (id) {
@@ -2478,68 +2478,63 @@
                 }
             }
 
-            // --- SISTEMA DE MIGRACIÓN PROFUNDA (EQUIDAD TOTAL) ---
-            // Solo actualizamos los registros que REALMENTE necesitan cambios para evitar sobrescribir datos nuevos de otras sedes
-            let updatesMigration = {};
-            const ahoraGlobal = getServerNow();
-
-            tempArray = tempArray.map((d, index) => {
-                if (!d) return d;
-                let changed = false;
-                let patch = {};
-
-                if (!d.id) {
-                    d.id = ahoraGlobal + index;
-                    patch.id = d.id;
-                    changed = true;
-                }
-                if (!d.turnoTimestamp) {
-                    d.turnoTimestamp = ahoraGlobal;
-                    patch.turnoTimestamp = d.turnoTimestamp;
-                    changed = true;
-                }
-
-                if (changed) {
-                    updatesMigration[d.id] = { ...d, ...patch };
-                }
-                return d;
-            }).filter(item => item !== null);
-
-            if (Object.keys(updatesMigration).length > 0) {
-                console.log("Normalizando turnos para registros específicos...", Object.keys(updatesMigration));
-                update(domRef, updatesMigration);
-            }
-            // -----------------------------------------------------
-
             // --- SINCRONIZACIÓN CON PROTECCIÓN ANTI-FLICKER (REPARACIÓN DE BUG DE REAPARICIÓN EN LIBRES) ---
             const ahoraSync = Date.now();
             const nuevosIds = new Set(tempArray.map(d => String(d.id)));
 
             // 1. Fusionar datos del servidor con actualizaciones locales recientes (Optimismo)
+            // Se prefiere la versión local si fue actualizada hace menos de 5 segundos para evitar que
+            // estados intermedios (como el paso de 'activo' a 'ruta') se reviertan por snapshots obsoletos.
             const baseFusionada = tempArray.map(serverDomi => {
                 const local = domiciliarios.find(ld => String(ld.id) === String(serverDomi.id));
-                // Si tenemos una versión local actualizada hace menos de 5 segundos, la preferimos
-                // para evitar que el estado vuelva a "activo" mientras Firebase procesa el "set".
                 if (local && local._localUpdate && (ahoraSync - local._localUpdate) < 5000) {
                     return local;
                 }
                 return serverDomi;
             });
 
-            // 2. Limpiar marcas de pendiente para registros que ya llegaron al servidor
+            // 2. Limpiar marcas de pendiente y recuperar registros nuevos que aún no están en el servidor
             domiciliarios.forEach(d => {
                 if (nuevosIds.has(String(d.id))) delete d._pendiente;
             });
 
-            // 3. Recuperar registros nuevos que aún no están en el servidor (pendientes de creación)
             const pendientesLocal = domiciliarios.filter(d =>
                 d._pendiente &&
                 !nuevosIds.has(String(d.id)) &&
                 (ahoraSync - d.id) < 8000
             );
 
-            // 4. Lista final: Sincronizados (con protección) + Nuevos Pendientes
+            // 3. Lista final sincronizada y protegida
             domiciliarios = [...baseFusionada, ...pendientesLocal];
+
+            // --- SISTEMA DE MIGRACIÓN PROFUNDA (Solo si es necesario) ---
+            // Usamos la lista ya fusionada y protegida para evitar re-propagar datos viejos
+            if (isSupervisor && tempArray.length > 0) {
+                let updatesMigration = {};
+                const ahoraGlobal = getServerNow();
+
+                domiciliarios.forEach((d, index) => {
+                    if (!d) return;
+                    let changed = false;
+
+                    if (!d.id) {
+                        d.id = ahoraGlobal + index;
+                        updatesMigration[`${d.id}/id`] = d.id;
+                        changed = true;
+                    }
+                    if (!d.turnoTimestamp) {
+                        d.turnoTimestamp = ahoraGlobal;
+                        updatesMigration[`${d.id}/turnoTimestamp`] = d.turnoTimestamp;
+                        changed = true;
+                    }
+                });
+
+                if (Object.keys(updatesMigration).length > 0) {
+                    console.log("Normalizando datos estructurales (Deep Update)...");
+                    update(domRef, updatesMigration);
+                }
+            }
+            
             render();
         }, (error) => {
             console.error("Error cargando domiciliarios:", error);
@@ -3334,6 +3329,25 @@
                 }
 
                 await guardar(nuevoDomi);
+
+                // --- SINCRONIZACIÓN CON Centro de Gestión de Personal (index2.html) ---
+                try {
+                    const todayDateStr = new Date().toLocaleDateString('sv-SE');
+                    const schedQuery = query(ref(db, 'programacion_domis'), orderByChild('name'), equalTo(nombreTxt));
+                    const snapshot = await get(schedQuery);
+                    
+                    if (snapshot.exists()) {
+                        const updates = {};
+                        snapshot.forEach((child) => {
+                            updates[`programacion_domis/${child.key}/asistencia/${todayDateStr}`] = true;
+                        });
+                        await update(ref(db), updates);
+                        console.log("Asistencia sincronizada para:", nombreTxt);
+                    }
+                } catch (e) {
+                    console.error("Error al sincronizar asistencia con index2.html:", e);
+                }
+                // --------------------------------------------------------------------
             } catch (error) {
                 console.error("Error al agregar:", error);
                 alert("⚠️ Error al guardar en la nube: " + error.message);
@@ -3767,7 +3781,7 @@
             }
         };
 
-        window.toggleInactivo = function (id) {
+        window.toggleInactivo = async function (id) {
             if (!isSupervisor) {
                 Swal.fire({ icon: 'error', title: 'Acceso Denegado', text: 'Solo Supervisores y Administradores pueden activar/desactivar domiciliarios.' });
                 return;
@@ -3776,6 +3790,23 @@
             if (d.estado === "inactivo") {
                 d.estado = "activo";
                 d.inactivoStartTimestamp = null;
+
+                // --- SINCRONIZACIÓN CON Centro de Gestión de Personal (index2.html) ---
+                try {
+                    const todayDateStr = new Date().toLocaleDateString('sv-SE');
+                    const schedQuery = query(ref(db, 'programacion_domis'), orderByChild('name'), equalTo(d.nombre));
+                    const snapshot = await get(schedQuery);
+                    if (snapshot.exists()) {
+                        const updates = {};
+                        snapshot.forEach((child) => {
+                            updates[`programacion_domis/${child.key}/asistencia/${todayDateStr}`] = true;
+                        });
+                        await update(ref(db), updates);
+                    }
+                } catch (e) {
+                    console.error("Error al sincronizar asistencia:", e);
+                }
+                // --------------------------------------------------------------------
             } else {
                 d.estado = "inactivo";
                 d.inactivoStartTimestamp = getServerNow();
@@ -4008,13 +4039,15 @@
 
         const TIEMPO_ALMUERZO = 35 * 60 * 1000;
         setInterval(() => {
-            let ch = false; let n = getServerNow();
+            let ch = false; 
+            let n = getServerNow();
             domiciliarios.forEach(d => {
-                if (d.estado === "almorzando" && d.finAlmuerzo <= n) {
+                // Validación estricta para evitar dobles llamadas o colisiones
+                if (d.estado === "almorzando" && d.finAlmuerzo && d.finAlmuerzo <= n) {
                     d.estado = "activo";
                     d.finAlmuerzo = null;
                     d.yaAlmorzo = true;
-                    d.turnoTimestamp = Date.now();
+                    d.turnoTimestamp = n; 
                     guardar(d);
                     ch = true;
                 }
