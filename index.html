@@ -1839,7 +1839,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getDatabase, ref, set, onValue, update, remove, get, query, orderByChild, equalTo } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+        import { getDatabase, ref, set, onValue, update, remove, get, query, orderByChild, equalTo, runTransaction, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
         // --- LÓGICA DE ROLES (MODO SUPERVISOR Y OPERADOR) ---
         window.abrirModal = function (id) {
@@ -2478,22 +2478,20 @@
                 }
             }
 
-            // --- SINCRONIZACIÓN CON PROTECCIÓN ANTI-FLICKER (REPARACIÓN DE BUG DE REAPARICIÓN EN LIBRES) ---
+            // --- SINCRONIZACIÓN CON PROTECCIÓN ANTI-FLICKER ---
             const ahoraSync = Date.now();
             const nuevosIds = new Set(tempArray.map(d => String(d.id)));
 
-            // 1. Fusionar datos del servidor con actualizaciones locales recientes (Optimismo)
-            // Se prefiere la versión local si fue actualizada hace menos de 5 segundos para evitar que
-            // estados intermedios (como el paso de 'activo' a 'ruta') se reviertan por snapshots obsoletos.
+            // Fusionar datos del servidor con actualizaciones locales muy recientes (Optimismo de 1s)
             const baseFusionada = tempArray.map(serverDomi => {
                 const local = domiciliarios.find(ld => String(ld.id) === String(serverDomi.id));
-                if (local && local._localUpdate && (ahoraSync - local._localUpdate) < 5000) {
-                    return local;
+                if (local && local._localUpdate && (ahoraSync - local._localUpdate) < 1000) {
+                    return { ...serverDomi, ...local, _fromServer: true };
                 }
                 return serverDomi;
             });
 
-            // 2. Limpiar marcas de pendiente y recuperar registros nuevos que aún no están en el servidor
+            // Limpiar marcas de pendiente y recuperar registros nuevos que aún no están en el servidor
             domiciliarios.forEach(d => {
                 if (nuevosIds.has(String(d.id))) delete d._pendiente;
             });
@@ -2501,10 +2499,10 @@
             const pendientesLocal = domiciliarios.filter(d =>
                 d._pendiente &&
                 !nuevosIds.has(String(d.id)) &&
-                (ahoraSync - d.id) < 8000
+                (ahoraSync - d.id) < 5000
             );
 
-            // 3. Lista final sincronizada y protegida
+            // Lista final sincronizada
             domiciliarios = [...baseFusionada, ...pendientesLocal];
 
             // --- SISTEMA DE MIGRACIÓN PROFUNDA (Solo si es necesario) ---
@@ -2686,21 +2684,43 @@
 
         async function guardar(d) {
             if (!d || !d.id) return;
-
-            // Marca local para protección anti-flicker (5 seg)
-            // IMPORTANTE: No se sube al servidor para no confundir a otros clientes
             d._localUpdate = Date.now();
-
             const cleanData = { ...d };
             delete cleanData._localUpdate;
             delete cleanData._pendiente;
-            delete cleanData._localPath; // Por si acaso existe de versiones viejas
+            delete cleanData._fromServer;
 
             try {
                 const targetRef = ref(db, `domiciliarios/${d.id}`);
                 await update(targetRef, cleanData);
             } catch (error) {
                 console.error("Error al guardar:", error);
+            }
+        }
+
+        async function guardarConTransaccion(id, transformFn) {
+            if (!id) return;
+            const targetRef = ref(db, `domiciliarios/${id}`);
+            try {
+                const result = await runTransaction(targetRef, (currentData) => {
+                    if (currentData) {
+                        const newData = transformFn({ ...currentData });
+                        if (newData === undefined) return; // Abortar
+                        return newData;
+                    }
+                    return currentData;
+                });
+                
+                if (result.committed) {
+                    // Actualizar localmente para respuesta inmediata
+                    const idx = domiciliarios.findIndex(x => String(x.id) === String(id));
+                    if (idx !== -1) {
+                        domiciliarios[idx] = { ...domiciliarios[idx], ...result.snapshot.val(), _localUpdate: Date.now() };
+                        render();
+                    }
+                }
+            } catch (error) {
+                console.error("Error en transacción para ID " + id + ":", error);
             }
         }
 
@@ -3555,78 +3575,134 @@
         };
 
         window.cambiarEstado = async function (id) {
-
             let d = domiciliarios.find(x => x.id == id);
+            if (!d) return;
+
             if (d.estado === "activo" || d.estado === "inactivo") {
                 const modal = document.getElementById('modalRuta');
                 const inEnt = document.getElementById('inputEntregas');
                 const inTor = document.getElementById('inputTortas');
                 inEnt.value = ""; inTor.value = ""; modal.style.display = 'flex'; inEnt.focus();
+                
                 const data = await new Promise((resolve) => {
-                    document.getElementById('btnConfirmarRuta').onclick = () => resolve({ e: parseInt(inEnt.value) || 0, t: parseInt(inTor.value) || 0 });
-                    modal.onclick = (e) => { if (e.target === modal) resolve(null); }
+                    const confirmBtn = document.getElementById('btnConfirmarRuta');
+                    const handler = () => {
+                        const eVal = parseInt(inEnt.value) || 0;
+                        const tVal = parseInt(inTor.value) || 0;
+                        confirmBtn.removeEventListener('click', handler);
+                        resolve({ e: eVal, t: tVal });
+                    };
+                    confirmBtn.addEventListener('click', handler);
+                    
+                    modal.onclick = (e) => { 
+                        if (e.target === modal) {
+                            confirmBtn.removeEventListener('click', handler);
+                            resolve(null); 
+                        }
+                    }
                 });
+                
                 cerrarModal('modalRuta');
                 if (!data) return;
-                d = domiciliarios.find(x => x.id == id) || d;
-                d.estado = "ruta";
-                d.rutasRealizadas++;
-                d.entregasRealizadas += data.e;
-                d.tortasPescado += data.t;
-                d.rutaStartTimestamp = getServerNow(); // <--- INICIO CRONOMETRO RUTA (Sincronizado)
-                d.turnoTimestamp = getServerNow(); // Al final de la cola 'En Ruta'
+
+                await guardarConTransaccion(id, (current) => {
+                    current.estado = "ruta";
+                    current.rutasRealizadas = (current.rutasRealizadas || 0) + 1;
+                    current.entregasRealizadas = (current.entregasRealizadas || 0) + data.e;
+                    current.tortasPescado = (current.tortasPescado || 0) + data.t;
+                    current.rutaStartTimestamp = getServerNow();
+                    current.turnoTimestamp = getServerNow();
+                    return current;
+                });
             } else {
-                d.estado = "activo";
-                d.rutaStartTimestamp = null;
-                d.turnoTimestamp = getServerNow();
+                await guardarConTransaccion(id, (current) => {
+                    current.estado = "activo";
+                    current.rutaStartTimestamp = null;
+                    current.turnoTimestamp = getServerNow();
+                    return current;
+                });
             }
-            render(); // Optimismo
-            guardar(d);
         };
 
         window.descontarTodo = async function (id) {
             let d = domiciliarios.find(x => x.id == id);
+            if (!d) return;
             const modal = document.getElementById('modalAjuste');
             const inEnt = document.getElementById('restarEntregas');
             const inTor = document.getElementById('restarTortas');
             inEnt.value = ""; inTor.value = ""; modal.style.display = 'flex';
 
             const data = await new Promise((resolve) => {
-                document.getElementById('btnConfirmarAjuste').onclick = () => resolve({ e: parseInt(inEnt.value) || 0, t: parseInt(inTor.value) || 0 });
-                document.getElementById('btnCerrarAjuste').onclick = () => resolve(null);
-                modal.onclick = (e) => { if (e.target === modal) resolve(null); }
+                const confirmBtn = document.getElementById('btnConfirmarAjuste');
+                const closeBtn = document.getElementById('btnCerrarAjuste');
+                
+                const onConfirm = () => {
+                    const res = { e: parseInt(inEnt.value) || 0, t: parseInt(inTor.value) || 0 };
+                    cleanup();
+                    resolve(res);
+                };
+                const onCancel = () => {
+                    cleanup();
+                    resolve(null);
+                };
+                const cleanup = () => {
+                    confirmBtn.removeEventListener('click', onConfirm);
+                    closeBtn.removeEventListener('click', onCancel);
+                };
+
+                confirmBtn.addEventListener('click', onConfirm);
+                closeBtn.addEventListener('click', onCancel);
+                modal.onclick = (e) => { if (e.target === modal) onCancel(); }
             });
 
             cerrarModal('modalAjuste');
             if (data) {
-                d = domiciliarios.find(x => x.id == id) || d;
-                d.entregasRealizadas = Math.max(0, d.entregasRealizadas - data.e);
-                d.tortasPescado = Math.max(0, d.tortasPescado - data.t);
-                render(); // Optimismo
-                guardar(d);
+                await guardarConTransaccion(id, (current) => {
+                    current.entregasRealizadas = Math.max(0, (current.entregasRealizadas || 0) - data.e);
+                    current.tortasPescado = Math.max(0, (current.tortasPescado || 0) - data.t);
+                    return current;
+                });
             }
         };
 
         window.sumarTodo = async function (id) {
             let d = domiciliarios.find(x => x.id == id);
+            if (!d) return;
             const modal = document.getElementById('modalSumar');
             const inEnt = document.getElementById('sumarEntregas');
             const inTor = document.getElementById('sumarTortas');
             inEnt.value = ""; inTor.value = ""; modal.style.display = 'flex';
 
             const data = await new Promise((resolve) => {
-                document.getElementById('btnConfirmarSumar').onclick = () => resolve({ e: parseInt(inEnt.value) || 0, t: parseInt(inTor.value) || 0 });
-                document.getElementById('btnCerrarSumar').onclick = () => resolve(null);
-                modal.onclick = (e) => { if (e.target === modal) resolve(null); }
+                const confirmBtn = document.getElementById('btnConfirmarSumar');
+                const closeBtn = document.getElementById('btnCerrarSumar');
+                
+                const onConfirm = () => {
+                    const res = { e: parseInt(inEnt.value) || 0, t: parseInt(inTor.value) || 0 };
+                    cleanup();
+                    resolve(res);
+                };
+                const onCancel = () => {
+                    cleanup();
+                    resolve(null);
+                };
+                const cleanup = () => {
+                    confirmBtn.removeEventListener('click', onConfirm);
+                    closeBtn.removeEventListener('click', onCancel);
+                };
+
+                confirmBtn.addEventListener('click', onConfirm);
+                closeBtn.addEventListener('click', onCancel);
+                modal.onclick = (e) => { if (e.target === modal) onCancel(); }
             });
 
             cerrarModal('modalSumar');
             if (data) {
-                d = domiciliarios.find(x => x.id == id) || d;
-                d.entregasRealizadas += data.e;
-                d.tortasPescado += data.t;
-                render(); // Optimismo
-                guardar(d);
+                await guardarConTransaccion(id, (current) => {
+                    current.entregasRealizadas = (current.entregasRealizadas || 0) + data.e;
+                    current.tortasPescado = (current.tortasPescado || 0) + data.t;
+                    return current;
+                });
             }
         };
 
@@ -3635,20 +3711,20 @@
                 Swal.fire({ icon: 'error', title: 'Acceso Denegado', text: 'Solo Supervisores y Administradores pueden gestionar almuerzos.' });
                 return;
             }
-            let d = domiciliarios.find(x => x.id == id);
-            if (d.estado !== "almorzando") {
-                d.estado = "almorzando";
-                d.finAlmuerzo = getServerNow() + TIEMPO_ALMUERZO;
-                d.rutaStartTimestamp = null;
-                d.turnoTimestamp = getServerNow();
-            } else {
-                d.estado = "activo";
-                d.finAlmuerzo = null;
-                d.yaAlmorzo = true;
-                d.turnoTimestamp = getServerNow();
-            }
-            render(); // Optimismo
-            guardar(d);
+            guardarConTransaccion(id, (current) => {
+                if (current.estado !== "almorzando") {
+                    current.estado = "almorzando";
+                    current.finAlmuerzo = getServerNow() + TIEMPO_ALMUERZO;
+                    current.rutaStartTimestamp = null;
+                    current.turnoTimestamp = getServerNow();
+                } else {
+                    current.estado = "activo";
+                    current.finAlmuerzo = null;
+                    current.yaAlmorzo = true;
+                    current.turnoTimestamp = getServerNow();
+                }
+                return current;
+            });
         };
 
         window.enviarWhatsApp = function (id) {
@@ -3731,6 +3807,7 @@
 
         window.finalizarTurno = async function (id) {
             let d = domiciliarios.find(x => x.id == id);
+            if (!d) return;
             const res = await confirmarAccion({
                 titulo: "Finalizar Turno",
                 texto: `¿Cerrar turno para ${d.nombre}? Ya no aparecerá en las búsquedas de hoy.`,
@@ -3739,14 +3816,14 @@
                 icono: '<i class="fas fa-sign-out-alt" style="color:#2d3436"></i>'
             });
             if (res) {
-                d = domiciliarios.find(x => x.id == id) || d;
-                d.finLaboral = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-                d.finTimestamp = getServerNow();
-                d.estado = "inactivo";
-                d.rutaStartTimestamp = null;
-                d.turnoTimestamp = getServerNow(); // Al final de la cola 'Ocupados'
-                render(); // Optimismo
-                guardar(d);
+                await guardarConTransaccion(id, (current) => {
+                    current.finLaboral = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    current.finTimestamp = getServerNow();
+                    current.estado = "inactivo";
+                    current.rutaStartTimestamp = null;
+                    current.turnoTimestamp = getServerNow();
+                    return current;
+                });
             }
         };
 
@@ -3786,12 +3863,24 @@
                 Swal.fire({ icon: 'error', title: 'Acceso Denegado', text: 'Solo Supervisores y Administradores pueden activar/desactivar domiciliarios.' });
                 return;
             }
-            let d = domiciliarios.find(x => x.id == id);
-            if (d.estado === "inactivo") {
-                d.estado = "activo";
-                d.inactivoStartTimestamp = null;
+            
+            await guardarConTransaccion(id, (current) => {
+                if (current.estado === "inactivo") {
+                    current.estado = "activo";
+                    current.inactivoStartTimestamp = null;
+                    // La sincronización de asistencia se maneja fuera o se puede disparar después
+                } else {
+                    current.estado = "inactivo";
+                    current.inactivoStartTimestamp = getServerNow();
+                }
+                current.rutaStartTimestamp = null;
+                current.turnoTimestamp = getServerNow();
+                return current;
+            });
 
-                // --- SINCRONIZACIÓN CON Centro de Gestión de Personal (index2.html) ---
+            // Sincronización de asistencia post-transacción (opcional, mejor si es atómica pero requiere cambiar estructura)
+            const d = domiciliarios.find(x => x.id == id);
+            if (d && d.estado === "activo") {
                 try {
                     const todayDateStr = new Date().toLocaleDateString('sv-SE');
                     const schedQuery = query(ref(db, 'programacion_domis'), orderByChild('name'), equalTo(d.nombre));
@@ -3806,37 +3895,28 @@
                 } catch (e) {
                     console.error("Error al sincronizar asistencia:", e);
                 }
-                // --------------------------------------------------------------------
-            } else {
-                d.estado = "inactivo";
-                d.inactivoStartTimestamp = getServerNow();
             }
-            d.rutaStartTimestamp = null;
-            d.turnoTimestamp = getServerNow();
-            render(); // Optimismo
-            guardar(d);
         };
 
         window.cambiarSede = async function (id) {
             if (!isSupervisor) return;
-            let d = domiciliarios.find(x => x.id == id);
-            if (!d) return;
 
-            // Lógica de alternancia (Itagui <-> Calazans)
-            const sedeActual = d.sede || "";
-            const nuevaSede = (sedeActual === "Itagui") ? "Calazans" : "Itagui";
-
-            d.sede = nuevaSede;
-
-            // Actualizar registro activo
-            render();
-            await guardar(d);
+            // Actualizar registro activo con transacción
+            await guardarConTransaccion(id, (current) => {
+                const sedeActual = current.sede || "";
+                const nuevaSede = (sedeActual === "Itagui") ? "Calazans" : "Itagui";
+                current.sede = nuevaSede;
+                return current;
+            });
 
             // Actualizar en base maestra para que el cambio sea permanente
-            const maestro = buscarEnMaestro(d.nombre);
-            if (maestro) {
-                maestro.sede = nuevaSede;
-                await guardarMaestro(maestro);
+            const d = domiciliarios.find(x => x.id == id);
+            if (d) {
+                const maestro = buscarEnMaestro(d.nombre);
+                if (maestro) {
+                    maestro.sede = d.sede;
+                    await guardarMaestro(maestro);
+                }
             }
         };
 
@@ -4039,17 +4119,20 @@
 
         const TIEMPO_ALMUERZO = 35 * 60 * 1000;
         setInterval(() => {
-            let ch = false; 
             let n = getServerNow();
             domiciliarios.forEach(d => {
-                // Validación estricta para evitar dobles llamadas o colisiones
+                // Validación atómica para evitar dobles llamadas o colisiones entre dispositivos
                 if (d.estado === "almorzando" && d.finAlmuerzo && d.finAlmuerzo <= n) {
-                    d.estado = "activo";
-                    d.finAlmuerzo = null;
-                    d.yaAlmorzo = true;
-                    d.turnoTimestamp = n; 
-                    guardar(d);
-                    ch = true;
+                    guardarConTransaccion(d.id, (current) => {
+                        if (current.estado === "almorzando" && current.finAlmuerzo && current.finAlmuerzo <= n) {
+                            current.estado = "activo";
+                            current.finAlmuerzo = null;
+                            current.yaAlmorzo = true;
+                            current.turnoTimestamp = n; 
+                            return current;
+                        }
+                        return undefined; // Abortar si ya fue actualizado por otro cliente
+                    });
                 }
             });
 
