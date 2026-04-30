@@ -2505,8 +2505,43 @@
             // Lista final sincronizada
             domiciliarios = [...baseFusionada, ...pendientesLocal];
 
+            // --- DETECCIÓN DE DATOS DE DÍAS ANTERIORES (AUTO-RESET) ---
+            if (isSupervisor && tempArray.length > 0) {
+                const ahoraGlobal = getServerNow();
+                const hoy = new Date(ahoraGlobal);
+                
+                // Buscamos si hay registros que NO sean de hoy
+                const hayViejos = tempArray.some(d => {
+                    if (!d.turnoTimestamp) return false;
+                    const dDate = new Date(d.turnoTimestamp);
+                    return dDate.getDate() !== hoy.getDate() || 
+                           dDate.getMonth() !== hoy.getMonth() || 
+                           dDate.getFullYear() !== hoy.getFullYear();
+                });
+
+                if (hayViejos && !window._staleDataPromptShown) {
+                    window._staleDataPromptShown = true;
+                    setTimeout(() => {
+                        Swal.fire({
+                            title: '¡Datos de ayer detectados!',
+                            text: 'Se han detectado domiciliarios con registros de un día anterior. ¿Deseas archivar estos datos y limpiar el panel para iniciar la jornada de hoy?',
+                            icon: 'warning',
+                            showCancelButton: true,
+                            confirmButtonText: 'Sí, Archivar y Limpiar',
+                            cancelButtonText: 'No, mantener datos',
+                            confirmButtonColor: 'var(--danger)',
+                            cancelButtonColor: '#adb5bd',
+                            allowOutsideClick: false
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.borrarTodo(true); // Pasar true para saltar la segunda confirmación
+                            }
+                        });
+                    }, 1000); // Pequeño delay para que no aparezca de inmediato al cargar
+                }
+            }
+
             // --- SISTEMA DE MIGRACIÓN PROFUNDA (Solo si es necesario) ---
-            // Usamos la lista ya fusionada y protegida para evitar re-propagar datos viejos
             if (isSupervisor && tempArray.length > 0) {
                 let updatesMigration = {};
                 const ahoraGlobal = getServerNow();
@@ -3379,9 +3414,9 @@
             }
         };
 
-        window.borrarTodo = async function () {
+        window.borrarTodo = async function (skipConfirm = false) {
             if (!isSupervisor) return;
-            const res = await confirmarAccion({
+            const res = skipConfirm || await confirmarAccion({
                 titulo: "Cierre de Jornada",
                 texto: "¿Borrar todos los datos actuales? Se archivará el reporte de hoy en el historial.",
                 botonSi: "Cerrar y Archivar",
@@ -3389,10 +3424,15 @@
                 icono: '<i class="fas fa-archive" style="color:var(--danger)"></i>'
             });
             if (res) {
+                // Determinar la fecha del reporte (basada en los registros o hoy)
+                const firstWithDate = domiciliarios.find(d => d.turnoTimestamp);
+                const fechaArchivo = firstWithDate ? new Date(firstWithDate.turnoTimestamp).toLocaleDateString() : new Date().toLocaleDateString();
+                const tsArchivo = firstWithDate ? firstWithDate.turnoTimestamp : getServerNow();
+
                 // Archivar antes de borrar
                 const reporteHoy = {
-                    fecha: new Date().toLocaleDateString(),
-                    timestamp: getServerNow(),
+                    fecha: fechaArchivo,
+                    timestamp: tsArchivo,
                     totalEntregas: domiciliarios.reduce((acc, d) => acc + (d.entregasRealizadas || 0), 0),
                     totalTortas: domiciliarios.reduce((acc, d) => acc + (d.tortasPescado || 0), 0),
                     detalle: domiciliarios.map(d => {
@@ -3420,6 +3460,17 @@
                 }
 
                 set(domRef, null); // Borrado total en la nube
+                domiciliarios = []; // Limpieza local inmediata para evitar "fantasmas" por el sistema de optimismo
+                render();
+
+                if (skipConfirm) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Jornada Archivada',
+                        text: `Se han guardado los datos con fecha ${fechaArchivo} y se ha limpiado el panel.`,
+                        timer: 3000
+                    });
+                }
             }
         };
 
