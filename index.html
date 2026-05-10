@@ -1670,6 +1670,11 @@
                 <canvas id="chartRendimiento" height="150"></canvas>
             </div>
 
+            <!-- Botón de Ranking de Podios -->
+            <button onclick="abrirModalRanking()" style="width: 100%; margin-top: 15px; background: linear-gradient(135deg, #FFD700, #FFA500); color: white; border: none; padding: 12px; border-radius: 12px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 4px 15px rgba(255, 215, 0, 0.3);">
+                <i class="fas fa-trophy"></i> 🏆 Ver Ranking de Podios (Top 1, 2, 3)
+            </button>
+
             <h3 style="margin-top:25px">📋 Historial de Reportes</h3>
 
             <!-- Filtros de Fecha para Exportación -->
@@ -1697,6 +1702,27 @@
             <div class="modal-btns">
                 <button class="btn-modal btn-cancel" onclick="cerrarModal('modalDashboard')"
                     style="width: 100%; background: #eee;">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="modalRankingPodios" onclick="if(event.target === this) cerrarModal(this.id)">
+        <div class="modal-content" style="max-width: 700px;">
+            <div style="text-align: center; margin-bottom: 20px;">
+                <div style="font-size: 2.5rem;">🏆</div>
+                <h3 style="margin: 0;">Salón de la Fama</h3>
+                <p style="color: #8d99ae; font-size: 0.85rem;">Frecuencia en el Top 3 por cada sede</p>
+            </div>
+
+            <div id="containerRanking" style="max-height: 450px; overflow-y: auto;">
+                <!-- Aquí se renderizan las tablas por sede -->
+            </div>
+
+            <div class="modal-btns" style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn-modal btn-cancel" onclick="cerrarModal('modalRankingPodios')" style="flex: 1; background: #eee;">Cerrar</button>
+                <button class="btn-modal" onclick="window.exportarRankingExcel()" style="flex: 1; background: var(--excel-color); color: white; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <i class="fas fa-file-excel"></i> Exportar Ranking
+                </button>
             </div>
         </div>
     </div>
@@ -3480,6 +3506,194 @@
             renderChart();
         };
 
+        window.abrirModalRanking = function() {
+            document.getElementById('modalRankingPodios').style.display = 'flex';
+            window.calcularYMostrarRanking();
+        };
+
+        window.calcularYMostrarRanking = function() {
+            const container = document.getElementById('containerRanking');
+            if (!container) return;
+
+            const stats = {}; 
+            let minDate = Infinity;
+            let maxDate = -Infinity;
+
+            historialData.forEach(day => {
+                if (day.timestamp < minDate) minDate = day.timestamp;
+                if (day.timestamp > maxDate) maxDate = day.timestamp;
+
+                // Agrupar por sede internamente para identificar ganadores por sede
+                const porSede = {};
+                day.detalle.forEach(d => {
+                    if (!d.n || !d.s) return;
+                    if (!porSede[d.s]) porSede[d.s] = [];
+                    porSede[d.s].push({ n: d.n.trim(), e: (d.e || 0) });
+                });
+
+                // En cada sede, los mejores 3 ganan su "título"
+                for (const sede in porSede) {
+                    porSede[sede].sort((a, b) => b.e - a.e);
+                    
+                    porSede[sede].forEach((d, index) => {
+                        // Normalizar nombre para la llave del objeto stats
+                        const nombreKey = d.n.toUpperCase();
+                        if (!stats[nombreKey]) stats[nombreKey] = { nombreReal: d.n, t1: 0, t2: 0, t3: 0, totalPuntos: 0 };
+                        
+                        if (index === 0 && d.e > 0) {
+                            stats[nombreKey].t1++;
+                            stats[nombreKey].totalPuntos += 10;
+                        } else if (index === 1 && d.e > 0) {
+                            stats[nombreKey].t2++;
+                            stats[nombreKey].totalPuntos += 5;
+                        } else if (index === 2 && d.e > 0) {
+                            stats[nombreKey].t3++;
+                            stats[nombreKey].totalPuntos += 2;
+                        }
+                    });
+                }
+            });
+
+            // Convertir a array para el listado general
+            const arr = Object.values(stats);
+            
+            // Ordenar por Top 1, luego Top 2, luego Top 3
+            arr.sort((a, b) => {
+                if (b.t1 !== a.t1) return b.t1 - a.t1;
+                if (b.t2 !== a.t2) return b.t2 - a.t2;
+                return b.t3 - a.t3;
+            });
+
+            const fechaInicio = minDate !== Infinity ? new Date(minDate).toLocaleDateString() : 'N/A';
+            const fechaFin = maxDate !== -Infinity ? new Date(maxDate).toLocaleDateString() : 'N/A';
+
+            let html = `
+                <div style="margin-bottom: 30px;">
+                    <p style="font-size:0.85rem; color:var(--primary); font-weight:700; text-align:center; margin-bottom:5px;">
+                        Periodo: ${fechaInicio} - ${fechaFin}
+                    </p>
+                    <p style="font-size:0.7rem; color:#8d99ae; margin-bottom:15px; text-align:center;">
+                        * Los podios se calculan por sede diaria y se suman globalmente.
+                    </p>
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: center;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid #eee; color: #8d99ae;">
+                                <th style="text-align: left; padding: 10px;">DOMICILIARIO</th>
+                                <th>🥇 T1</th>
+                                <th>🥈 T2</th>
+                                <th>🥉 T3</th>
+                                <th style="color: var(--primary);">SCORE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${arr.filter(x => (x.t1 + x.t2 + x.t3) > 0).map((x, idx) => `
+                                <tr style="border-bottom: 1px solid #f8f9fa; ${idx < 3 ? 'background: #fffdf0;' : ''}">
+                                    <td style="text-align: left; padding: 12px; font-weight: 700;">
+                                        ${idx === 0 ? '👑 ' : idx < 3 ? '⭐ ' : ''}${x.nombreReal}
+                                    </td>
+                                    <td><span style="background: #FFD700; color: white; padding: 2px 8px; border-radius: 10px; font-weight: 800;">${x.t1}</span></td>
+                                    <td><span style="background: #C0C0C0; color: white; padding: 2px 8px; border-radius: 10px; font-weight: 800;">${x.t2}</span></td>
+                                    <td><span style="background: #CD7F32; color: white; padding: 2px 8px; border-radius: 10px; font-weight: 800;">${x.t3}</span></td>
+                                    <td style="font-weight: 800; color: var(--primary);">${x.totalPuntos} pts</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            if (arr.filter(x => (x.t1 + x.t2 + x.t3) > 0).length === 0) {
+                html = "<p style='text-align:center; color:#8d99ae; padding: 20px;'>No hay datos para mostrar.</p>";
+            }
+            
+            container.innerHTML = html;
+        };
+
+        window.exportarRankingExcel = async function() {
+            if (!historialData || historialData.length === 0) {
+                alert("No hay datos para exportar.");
+                return;
+            }
+
+            const stats = {}; 
+            let minDate = Infinity;
+            let maxDate = -Infinity;
+
+            // Mismo cálculo que el render
+            historialData.forEach(day => {
+                if (day.timestamp < minDate) minDate = day.timestamp;
+                if (day.timestamp > maxDate) maxDate = day.timestamp;
+                const porSede = {};
+                day.detalle.forEach(d => {
+                    if (!d.n || !d.s) return;
+                    if (!porSede[d.s]) porSede[d.s] = [];
+                    porSede[d.s].push({ n: d.n.trim(), e: (d.e || 0) });
+                });
+                for (const sede in porSede) {
+                    porSede[sede].sort((a, b) => b.e - a.e);
+                    porSede[sede].forEach((d, index) => {
+                        const nombreKey = d.n.toUpperCase();
+                        if (!stats[nombreKey]) stats[nombreKey] = { nombreReal: d.n, t1: 0, t2: 0, t3: 0, totalPuntos: 0 };
+                        if (index === 0 && d.e > 0) { stats[nombreKey].t1++; stats[nombreKey].totalPuntos += 10; }
+                        else if (index === 1 && d.e > 0) { stats[nombreKey].t2++; stats[nombreKey].totalPuntos += 5; }
+                        else if (index === 2 && d.e > 0) { stats[nombreKey].t3++; stats[nombreKey].totalPuntos += 2; }
+                    });
+                }
+            });
+
+            const arr = Object.values(stats).filter(x => (x.t1 + x.t2 + x.t3) > 0);
+            arr.sort((a, b) => {
+                if (b.t1 !== a.t1) return b.t1 - a.t1;
+                if (b.t2 !== a.t2) return b.t2 - a.t2;
+                return b.t3 - a.t3;
+            });
+
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Ranking Podios');
+
+            const fechaI = new Date(minDate).toLocaleDateString();
+            const fechaF = new Date(maxDate).toLocaleDateString();
+
+            worksheet.columns = [
+                { header: 'DOMICILIARIO', key: 'n', width: 35 },
+                { header: 'TOP 1 (10 pts)', key: 't1', width: 15 },
+                { header: 'TOP 2 (5 pts)', key: 't2', width: 15 },
+                { header: 'TOP 3 (2 pts)', key: 't3', width: 15 },
+                { header: 'TOTAL SCORE', key: 'puntos', width: 15 }
+            ];
+
+            // Header Style
+            worksheet.getRow(1).eachCell(cell => {
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFD700' } }; // Gold
+                cell.alignment = { horizontal: 'center' };
+            });
+
+            arr.forEach(x => {
+                worksheet.addRow({
+                    n: x.nombreReal,
+                    t1: x.t1,
+                    t2: x.t2,
+                    t3: x.t3,
+                    puntos: x.totalPuntos
+                });
+            });
+
+            // Footer con info de periodo
+            worksheet.addRow([]);
+            worksheet.addRow({ n: `REPORTE GENERADO EL: ${new Date().toLocaleString()}` });
+            worksheet.addRow({ n: `PERIODO ANALIZADO: ${fechaI} al ${fechaF}` });
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = window.URL.createObjectURL(blob);
+            const anchor = document.createElement('a');
+            anchor.href = url;
+            anchor.download = `Ranking_Podios_${new Date().getTime()}.xlsx`;
+            anchor.click();
+            window.URL.revokeObjectURL(url);
+        };
+
         function renderHistorial() {
             const container = document.getElementById('listaHistorial');
             let html = "";
@@ -4130,7 +4344,11 @@
                                     ${timer}
                                 </div>
                                 <div class="stats-row">
-                                    <div class="time-badge"><i class="fas fa-clock"></i> ${d.inicioLaboral} - ${d.finLaboral || '--:--'}</div>
+                                    <div class="time-badge" 
+                                         style="${window.isAdmin ? 'cursor:pointer; background:var(--primary); color:white;' : ''}" 
+                                         ${window.isAdmin ? `onclick="window.editarHoras('${idStr}')" title="Editar horas (Solo Admin)"` : ''}>
+                                         <i class="fas fa-clock"></i> ${d.inicioLaboral} - ${d.finLaboral || '--:--'}
+                                    </div>
                                     <div class="stat-box">R: <b class="val-e">${d.entregasRealizadas}</b></div>
                                     <div class="stat-box">T: <b class="val-t">${d.tortasPescado || 0}</b></div>
                                     ${discountBtnHTML}
@@ -4383,19 +4601,39 @@
                 { header: 'DOMICILIARIO', key: 'nombre', width: 35 },
                 { header: 'NÚMERO DE CUENTA', key: 'cuenta', width: 35 },
                 { header: 'SUELDO BRUTO', key: 'bruto', width: 15 },
-                { header: 'DEDUCCIONES', key: 'deducciones', width: 15 },
+                { header: 'PRESTAMOS (incl. 5%)', key: 'prestamos', width: 20 },
+                { header: 'TORTAS DE PESCADO', key: 'tortas_pescado', width: 20 },
+                { header: 'PRESTACIONES', key: 'prestaciones', width: 15 },
+                { header: 'OTROS DESCUENTOS', key: 'otros', width: 15 },
+                { header: 'DESCUENTOS TOTALES', key: 'deducciones', width: 20 },
                 { header: 'TOTAL NETO', key: 'neto', width: 15 },
                 { header: 'PERIODO', key: 'periodo', width: 35 }
             ];
 
-            // Formato Headers
-            worksheet.getRow(1).eachCell(c => {
+            const colColors = {
+                3: 'FF2596BE', // Bruto (Azul)
+                4: 'FFF72585', // Prestamos (Rosa/Rojo)
+                5: 'FF4CC9F0', // Tortas (Celeste)
+                6: 'FFF8961E', // Prestaciones (Naranja)
+                7: 'FF8D99AE', // Otros (Gris)
+                8: 'FF2B2D42', // Deducciones Totales (Oscuro)
+                9: 'FF00B894'  // Neto (Verde)
+            };
+
+            // Formato Headers con colores específicos
+            worksheet.getRow(1).eachCell((c, colNumber) => {
                 c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6C5CE7' } };
+                c.fill = { 
+                    type: 'pattern', 
+                    pattern: 'solid', 
+                    fgColor: { argb: colColors[colNumber] || 'FF6C5CE7' } 
+                };
                 c.alignment = { horizontal: 'center' };
             });
 
             const periodoStr = `${rango.inicio.toLocaleDateString()} al ${rango.fin.toLocaleDateString()}`;
+
+            let gBruto = 0, gPrestamos = 0, gTortas = 0, gPrestaciones = 0, gOtros = 0, gDeds = 0, gNeto = 0;
 
             [...nombresSet]
                 .filter(nombre => !nombre.toLowerCase().includes('indrive'))
@@ -4417,8 +4655,29 @@
                     const listaDeds = deduccionesSemanales[dedKey];
 
                     let totalDed = 0;
+                    let vPrestamos = 0;
+                    let vTortas = 0;
+                    let vPrestaciones = 0;
+                    let vOtros = 0;
+
                     if (Array.isArray(listaDeds)) {
-                        totalDed = listaDeds.reduce((acc, d) => acc + (d.v || 0), 0);
+                        listaDeds.forEach(d => {
+                            const cNorm = normalize(d.c);
+                            const val = d.v || 0;
+                            if (cNorm === "prestamo") {
+                                vPrestamos += val;
+                                totalDed += val;
+                            } else if (cNorm === "tortas de pescado") {
+                                vTortas += val;
+                                totalDed += val;
+                            } else if (cNorm === "prestaciones") {
+                                vPrestaciones += val;
+                                totalDed += val;
+                            } else {
+                                vOtros += val;
+                                totalDed += val;
+                            }
+                        });
                     } else if (listaDeds && listaDeds.valor) {
                         totalDed = listaDeds.valor;
                     }
@@ -4427,21 +4686,60 @@
                         nombre: nombre,
                         cuenta: cuenta,
                         bruto: bruto,
+                        prestamos: vPrestamos,
+                        tortas_pescado: vTortas,
+                        prestaciones: vPrestaciones,
+                        otros: vOtros,
                         deducciones: totalDed,
                         neto: bruto - totalDed,
                         periodo: periodoStr
                     });
+
+                    // Acumular totales globales
+                    gBruto += bruto;
+                    gPrestamos += vPrestamos;
+                    gTortas += vTortas;
+                    gPrestaciones += vPrestaciones;
+                    gOtros += vOtros;
+                    gDeds += totalDed;
+                    gNeto += (bruto - totalDed);
                 });
+
+            // Añadir Fila de Totales
+            const totalRow = worksheet.addRow({
+                nombre: 'TOTALES GENERALES',
+                bruto: gBruto,
+                prestamos: gPrestamos,
+                tortas_pescado: gTortas,
+                prestaciones: gPrestaciones,
+                otros: gOtros,
+                deducciones: gDeds,
+                neto: gNeto
+            });
+
+            // Estilo Fila de Totales
+            totalRow.eachCell((cell, colNumber) => {
+                cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+                if (colNumber >= 3 && colNumber <= 9) {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colColors[colNumber] } };
+                } else {
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF2D3436' } };
+                }
+                cell.alignment = { horizontal: 'center' };
+            });
 
             // Formato de moneda, alineación, bordes y colores
             worksheet.eachRow((row, rowNumber) => {
                 if (rowNumber > 1) {
-                    row.getCell(3).numFmt = '"$"#,##0';
-                    row.getCell(4).numFmt = '"$"#,##0';
-                    row.getCell(5).numFmt = '"$"#,##0';
+                    // Formatear columnas de dinero (3 a 9)
+                    for (let i = 3; i <= 9; i++) {
+                        const cell = row.getCell(i);
+                        cell.value = Number(cell.value) || 0;
+                        cell.numFmt = '"$"#,##0';
+                    }
 
-                    // Pintar Total Neto (Columna 5) de verde claro
-                    row.getCell(5).fill = {
+                    // Pintar Total Neto (Columna 9) de verde claro
+                    row.getCell(9).fill = {
                         type: 'pattern',
                         pattern: 'solid',
                         fgColor: { argb: 'FFCCFFCC' }
@@ -4474,12 +4772,14 @@
 
             let listaDeds = [];
             if (Array.isArray(savedData)) {
-                listaDeds = savedData;
-            } else if (savedData && savedData.concepto) {
-                // Migración de formato antiguo
-                listaDeds = [{ c: savedData.concepto, v: savedData.valor }];
+                // Filtrar para que no salgan los que tengan valor 0 (limpiar registros previos vacíos)
+                listaDeds = savedData.filter(d => (d.v || 0) > 0);
+            } else if (savedData && savedData.concepto && (savedData.valor || 0) > 0) {
+                // Migración de formato antiguo solo si tiene valor
+                listaDeds = [{ c: savedData.concepto, v: savedData.valor || 0 }];
             } else {
-                listaDeds = [{ c: "Préstamo", v: 0 }];
+                // Iniciar vacío por solicitud del usuario
+                listaDeds = [];
             }
 
             const reportesDomi = [];
@@ -4515,7 +4815,10 @@
 
                 return `
                     <div style="padding:8px; border-bottom:1px solid #eee; font-size:0.85rem">
-                        <div style="font-weight:700; color:var(--primary)">${r.fecha}</div>
+                        <div style="font-weight:700; color:var(--primary); display:flex; justify-content:space-between; align-items:center;">
+                            ${r.fecha}
+                            ${window.isAdmin ? `<button onclick="window.editarHorasHistorial('${nombre}', '${r.fecha}')" style="background:none; border:none; color:var(--primary); cursor:pointer; font-size:0.7rem;"><i class="fas fa-edit"></i> Editar Horas</button>` : ''}
+                        </div>
                         <div style="display:flex; justify-content:space-between">
                             <span>Entregas: ${r.e || 0} | Tortas: ${r.t || 0}</span>
                             <span style="font-weight:600">${formatM(r.tot)}</span>
@@ -4554,14 +4857,30 @@
                 </div>
 
                 <div style="margin-bottom: 15px; padding: 12px; border: 1.5px dashed #6c5ce7; border-radius: 12px; background: #fdfcff;">
-                    <p style="font-weight: 700; font-size: 0.85rem; color: #6c5ce7; margin-bottom: 8px;"><i class="fas fa-minus-circle"></i> Deducciones / Préstamos</p>
+                    <p style="font-weight: 700; font-size: 0.85rem; color: #6c5ce7; margin-bottom: 12px;"><i class="fas fa-minus-circle"></i> Deducciones / Préstamos</p>
                     
+                    <!-- ÁREA DE ADICIÓN RÁPIDA -->
+                    <div style="display: grid; grid-template-columns: 1.2fr 1fr auto; gap: 8px; margin-bottom: 15px; align-items: flex-end; background: white; padding: 10px; border-radius: 12px; border: 1px solid #eee; box-shadow: 0 2px 5px rgba(0,0,0,0.02);">
+                        <div class="input-group" style="margin:0">
+                            <label style="font-size: 0.65rem; color: #8d99ae;">Concepto</label>
+                            <select id="selectConcepto" style="width: 100%; padding: 8px; border-radius: 10px; border: 2px solid #edf2f4; font-size: 0.85rem; outline: none;">
+                                <option value="Prestamo">Prestamo</option>
+                                <option value="Tortas de pescado">Tortas de pescado</option>
+                                <option value="Prestaciones">Prestaciones</option>
+                                <option value="Otro">Otro...</option>
+                            </select>
+                        </div>
+                        <div class="input-group" style="margin:0">
+                            <label style="font-size: 0.65rem; color: #8d99ae;">Valor</label>
+                            <input type="number" id="valorConcepto" placeholder="$ 0" style="width: 100%; padding: 8px; border-radius: 10px; border: 2px solid #edf2f4; font-size: 0.85rem; outline: none; text-align: center; font-weight: 700;">
+                        </div>
+                        <button onclick="window.agregarDeduccionNueva()" style="background: var(--primary); color: white; border: none; width: 38px; height: 38px; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s;">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+
                     <div id="containerDeducciones"></div>
                     
-                    <button onclick="window.agregarFilaDeduccion()" style="background:#6c5ce7; color:white; border:none; border-radius:8px; padding:6px 12px; font-size:0.75rem; font-weight:600; cursor:pointer; margin-top:5px; display:flex; align-items:center; gap:5px">
-                        <i class="fas fa-plus-circle"></i> Añadir Concepto
-                    </button>
-
                     <div style="display:flex; justify-content:space-between; margin-top:15px; padding-top:10px; border-top:1.5px solid #eee; font-weight:800; color:var(--danger); font-size:1.1rem">
                         <span>Total Neto:</span> <span id="valTotalNeto">${formatM(totalPay)}</span>
                     </div>
@@ -4576,43 +4895,77 @@
             window.renderFilasDeduccion = function () {
                 const container = document.getElementById('containerDeducciones');
                 if (!container) return;
-                container.innerHTML = listaDeds.map((d, index) => `
-                    <div style="display: grid; grid-template-columns: 1.2fr 1fr auto; gap: 8px; margin-bottom: 10px; align-items: flex-end;">
-                        <div class="input-group" style="margin-bottom:0">
-                            ${index === 0 ? '<label>Concepto</label>' : ''}
-                            <input type="text" class="ded-c" value="${d.c}" style="font-size: 0.85rem; padding: 6px; text-align:left; font-weight:400" oninput="window.actualizarTotalNeto()">
+                container.innerHTML = listaDeds.map((d, index) => {
+                    return `
+                    <div style="display: grid; grid-template-columns: 1.2fr 1fr auto; gap: 8px; margin-bottom: 10px; align-items: center; background: #f8f9fa; padding: 8px; border-radius: 10px;">
+                        <div style="font-size: 0.85rem; font-weight: 600; color: #4a5568;">
+                            ${d.c}
                         </div>
-                        <div class="input-group" style="margin-bottom:0">
-                            ${index === 0 ? '<label>Valor</label>' : ''}
-                            <input type="number" class="ded-v" value="${d.v}" style="font-size: 0.85rem; padding: 6px;" oninput="window.actualizarTotalNeto()">
+                        <div style="text-align: right;">
+                            <input type="number" class="ded-v" value="${d.v}" data-index="${index}" style="width: 100%; font-size: 0.85rem; padding: 4px; border: 1px solid #ddd; border-radius: 6px; text-align: center; font-weight: 700;" oninput="window.actualizarTotalNeto()">
                         </div>
-                        <button onclick="window.eliminarFilaDeduccion(${index})" style="background:none; border:none; color:var(--danger); cursor:pointer; padding: 6px 0; font-size:1.1rem;" title="Eliminar concepto"><i class="fas fa-times-circle"></i></button>
+                        <button onclick="window.eliminarFilaDeduccion(${index})" style="background:none; border:none; color:var(--danger); cursor:pointer; padding: 0 4px; font-size:1rem;" title="Eliminar"><i class="fas fa-times-circle"></i></button>
                     </div>
-                `).join('');
+                `;
+                }).join('');
             };
 
-            window.agregarFilaDeduccion = function () {
-                listaDeds.push({ c: "", v: 0 });
-                window.renderFilasDeduccion();
-                window.actualizarTotalNeto();
+            window.agregarDeduccionNueva = function() {
+                const select = document.getElementById('selectConcepto');
+                const inputVal = document.getElementById('valorConcepto');
+                const c = select.value;
+                let v = parseInt(inputVal.value) || 0;
+
+                if (v <= 0) {
+                    Swal.fire({ icon: 'warning', title: 'Valor inválido', text: 'Por favor ingresa un monto mayor a 0.', timer: 2000, showConfirmButton: false });
+                    return;
+                }
+
+                // Aplicar recargo del 5% de una vez si es Préstamo
+                if (normalize(c) === "prestamo") {
+                    v = Math.round(v * 1.05);
+                }
+
+                if (c === "Otro") {
+                    Swal.fire({
+                        title: 'Nuevo Concepto',
+                        input: 'text',
+                        inputLabel: 'Escribe el nombre de la deducción',
+                        showCancelButton: true,
+                        confirmButtonText: 'Añadir',
+                        cancelButtonText: 'Cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed && result.value) {
+                            listaDeds.push({ c: result.value, v: v });
+                            inputVal.value = "";
+                            window.renderFilasDeduccion();
+                            window.actualizarTotalNeto();
+                        }
+                    });
+                } else {
+                    listaDeds.push({ c: c, v: v });
+                    inputVal.value = "";
+                    window.renderFilasDeduccion();
+                    window.actualizarTotalNeto();
+                }
             };
 
             window.eliminarFilaDeduccion = function (idx) {
                 listaDeds.splice(idx, 1);
-                if (listaDeds.length === 0) listaDeds.push({ c: "Préstamo", v: 0 });
                 window.renderFilasDeduccion();
                 window.actualizarTotalNeto();
             };
 
             window.actualizarTotalNeto = function () {
-                const rowCs = document.querySelectorAll('.ded-c');
                 const rowVs = document.querySelectorAll('.ded-v');
                 let totalDed = 0;
                 let nuevasDeds = [];
 
-                rowCs.forEach((input, i) => {
-                    const c = input.value;
-                    const v = parseInt(rowVs[i].value) || 0;
+                rowVs.forEach((input) => {
+                    const idx = parseInt(input.getAttribute('data-index'));
+                    const c = listaDeds[idx].c;
+                    let v = parseInt(input.value) || 0;
+                    
                     totalDed += v;
                     nuevasDeds.push({ c, v });
                 });
@@ -4645,7 +4998,10 @@
 
                 let dedMsg = "";
                 if (totalDed > 0) {
-                    dedMsg = listaDeds.filter(d => (d.v || 0) > 0).map(d => `\n➖ ${d.c || 'Deducción'}: -${formatM(d.v)}`).join('');
+                    dedMsg = listaDeds.filter(d => (d.v || 0) > 0).map(d => {
+                        let val = d.v;
+                        return `\n➖ ${d.c || 'Deducción'}: -${formatM(val)}`;
+                    }).join('');
                     dedMsg += `\n💰 *TOTAL NETO: ${formatM(totalNeto)}*`;
                 }
 
@@ -4683,6 +5039,91 @@
         scrollBtn.onclick = () => {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         };
+        window.editarHoras = function(id) {
+            if (!window.isAdmin) return;
+            // Buscar en el array global 'domiciliarios'
+            const d = domiciliarios.find(x => String(x.id) === String(id));
+            if (!d) {
+                console.error("No se encontró el domiciliario con ID:", id);
+                return;
+            }
+
+            Swal.fire({
+                title: 'Editar Horas - ' + d.nombre,
+                html: `
+                    <div style="text-align:left;">
+                        <label>Hora Ingreso:</label>
+                        <input type="time" id="swal-ing" class="swal2-input" value="${d.inicioLaboral || ''}">
+                        <label>Hora Salida:</label>
+                        <input type="time" id="swal-fin" class="swal2-input" value="${d.finLaboral || ''}">
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Guardar',
+                preConfirm: () => {
+                    return {
+                        ing: document.getElementById('swal-ing').value,
+                        fin: document.getElementById('swal-fin').value
+                    }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    update(ref(db, `db_domis/${id}`), {
+                        inicioLaboral: result.value.ing,
+                        finLaboral: result.value.fin
+                    }).then(() => {
+                        Swal.fire({ icon: 'success', title: 'Actualizado', timer: 1500, showConfirmButton: false });
+                    });
+                }
+            });
+        };
+
+        window.editarHorasHistorial = function(nombre, fecha) {
+            if (!window.isAdmin) return;
+            
+            // Buscar el reporte en el historial local
+            const h = historialData.find(item => item.fecha === fecha);
+            if (!h) return;
+            const det = h.detalle.find(d => d.n === nombre);
+            if (!det) return;
+
+            Swal.fire({
+                title: 'Editar Horas Historial',
+                text: `${nombre} - ${fecha}`,
+                html: `
+                    <div style="text-align:left;">
+                        <label>Hora Ingreso:</label>
+                        <input type="time" id="swal-ing-h" class="swal2-input" value="${det.ing || ''}">
+                        <label>Hora Salida:</label>
+                        <input type="time" id="swal-fin-h" class="swal2-input" value="${det.fin || ''}">
+                    </div>
+                `,
+                showCancelButton: true,
+                confirmButtonText: 'Guardar',
+                preConfirm: () => {
+                    return {
+                        ing: document.getElementById('swal-ing-h').value,
+                        fin: document.getElementById('swal-fin-h').value
+                    }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Actualizar en el detalle del historial
+                    const nuevosDetalles = h.detalle.map(d => {
+                        if (d.n === nombre) {
+                            return { ...d, ing: result.value.ing, fin: result.value.fin };
+                        }
+                        return d;
+                    });
+
+                    update(ref(db, `historial/${h.id}`), { detalle: nuevosDetalles }).then(() => {
+                        Swal.fire({ icon: 'success', title: 'Historial Actualizado', text: 'El cambio se verá reflejado al recargar o reabrir el detalle.', timer: 2000 });
+                        window.verDetalleSemanal(nombre);
+                    });
+                }
+            });
+        };
+
     </script>
 </body>
 
